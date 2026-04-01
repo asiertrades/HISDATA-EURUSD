@@ -1,0 +1,6 @@
+day_name,Count,Mean Range,Median Range,Std Range,Mean Return,Median Return,% Trending
+Monday,1324,51.18,45.0,28.87,-0.07,-0.2,93.0
+Tuesday,1324,53.23,46.35,31.47,0.84,1.0,92.0
+Wednesday,1284,61.92,52.7,37.02,-0.94,-0.7,92.0
+Thursday,1282,64.54,55.9,37.55,0.43,0.2,92.0
+Friday,6,0.0,0.0,0.0,0.0,0.0,0.0
