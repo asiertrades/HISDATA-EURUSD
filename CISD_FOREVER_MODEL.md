@@ -12,6 +12,8 @@ Archivos:
 | `cisd_forever_backtest.py` | Backtester del mismo motor sobre `DAT_ASCII_EURUSD_M1_*.csv` |
 | `cisd_m1_sim.py` | Simulación de las operaciones a resolución de minuto |
 | `analisis_calendario.py` | Cruce con el calendario real de 2025 |
+| `forever_model_engine.py` | Las entradas *propias* del Forever Model, portadas a Python |
+| `correlacion_cisd_forever.py` | Cruce entre las entradas de los dos motores |
 | `calendario_trades_2025.csv` | El calendario del Excel, una fila por marca |
 
 ---
@@ -239,10 +241,69 @@ Lo que **no** se ha tocado, a propósito:
 
 ---
 
-## 5. Siguiente paso
+## 5. ¿Cuadran las entradas del CISD con las del Forever Model?
+
+`forever_model_engine.py` porta el motor completo del Forever Model (FVG diario →
+pivotes ICT por tiers → barrido → order block → confirmación → entrada al volver
+al OB) con LTF = H4 y HTF = diario, que es la alineación comparable con el CISD.
+**Sin la puerta SMT**, que necesitaría el par correlacionado: sin ella el modelo
+dispara más de la cuenta, así que el solape medido es un techo.
+
+### 5.1 No cuadran
+
+| | 2025 | 2001-2025 |
+|---|---|---|
+| Entradas CISD | 181 | 4358 |
+| Entradas Forever Model | 36 | 1228 |
+| Misma vela y dirección | 1 (0.6 %) | 19 (0.4 %) |
+| Misma sesión y dirección | 13 (7.2 %) | 414 (9.7 %) |
+| El Forever Model dice lo contrario | 17 (9.4 %) | 423 (9.9 %) |
+| Entradas del Forever Model con un CISD equivalente | 36 % | 34 % |
+
+La razón es estructural y se ve en el reparto horario: el CISD solo entra en las
+velas de las 05:00 y 09:00 (2127 y 1941 de 4358), mientras que el Forever Model
+reparte sus entradas por las seis velas del día (262 a la 01:00, 226 a las 17:00,
+223 a las 13:00…). Son modelos distintos: el CISD reacciona al barrido del extremo
+de la sesión a una hora fija; el Forever Model espera a que el precio vuelva a un
+order block dentro de un FVG diario, y eso ocurre cuando ocurre.
+
+### 5.2 La trampa: la confluencia "mata" las señales… pero es una tautología
+
+Cruzando sin cuidado sale un efecto espectacular: las señales del CISD que
+coinciden con una entrada del Forever Model en la misma dirección rinden
+−0.297 R/op frente a +0.029 de la base, y en la coincidencia exacta de vela
+**pierden 19 de 19**. Estable en los tres periodos y superviviente al filtro de
+calidad. Sobre las marcas de 2025: 9 % de acierto contra 70 %.
+
+Es un espejismo. El Forever Model entra con orden límite: que su OB se llene en
+la misma vela en la que entra el CISD, y en el mismo sentido, significa que el
+precio se ha ido en contra de la entrada. Se está midiendo el resultado con
+información de la propia operación.
+
+Restringiendo a lo que se sabe **antes** de entrar, el efecto desaparece:
+
+| Ventana (solo velas anteriores a la entrada) | n | WR | R/op |
+|---|---|---|---|
+| todas | 4259 | 40.8 % | +0.022 |
+| OB llenado en las 3 velas previas, misma dirección | 147 | 45.6 % | +0.087 |
+| OB llenado en las 6 velas previas, misma dirección | 356 | 39.3 % | −0.014 |
+| OB llenado en las 6 previas, dirección contraria | 412 | 40.0 % | +0.035 |
+
+Ni confirma ni veta. **Las entradas del Forever Model no sirven como filtro del
+CISD**, ni a favor ni en contra.
+
+### 5.3 El Forever Model por su cuenta
+
+Con proyección 2R y SL en el extremo del order block, 2001-2025: 1228 entradas
+(49 al año), 32.2 % de acierto, −0.035 R por operación. Esto **no es un veredicto
+sobre el modelo**: le falta justo la pieza que selecciona, la divergencia SMT.
+Medirlo de verdad exige meter GBPUSD o DXY en el repo.
+
+---
+
+## 6. Siguiente paso
 
 - Pegar el indicador en TradingView y comprobar que con "Filtro de calidad" OFF
   las flechas son las del original; luego activarlo y ver la tabla.
-- El filtro **SMT sigue sin validar**: hace falta GBPUSD o DXY en el repo para
-  medirlo con el calendario. Es el módulo del Forever Model con más recorrido
-  pendiente.
+- Añadir los M1 de GBPUSD (o DXY) al repo: desbloquea a la vez el filtro SMT del
+  indicador y la evaluación honesta del Forever Model como sistema propio.
