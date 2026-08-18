@@ -1,0 +1,1012 @@
+// This source code is subject to the Mozilla Public License 2.0
+// © asiertrades
+//
+// CISD H4 + FOREVER MODEL
+// ─────────────────────────────────────────────────────────────────────────────
+// Motor de señales: "CLAUDE CISD H4 v5" (idéntico, sin tocar). Los módulos
+// importados del Forever Model (SMT, FVG HTF, OB/proyecciones, marcadores de
+// backtest y tabla de estadísticas) actúan SOLO como capa de filtro/gestión
+// por encima del motor. Con todos los filtros en "Off" el script produce
+// exactamente las mismas señales que el original v5.
+// ─────────────────────────────────────────────────────────────────────────────
+//@version=6
+indicator("CISD H4 + Forever Model", overlay=true, max_lines_count=500, max_boxes_count=500, max_labels_count=500)
+
+// ══════════════════════════════════════════════════════════════════
+// INPUTS — MOTOR CISD (defaults idénticos al original que funciona)
+// ══════════════════════════════════════════════════════════════════
+i_obMinBody    = input.float(0.40, "OB Min Body Ratio (tier A)",  step=0.05, group="OB")
+i_cisdMinBody  = input.float(0.55, "CISD Min Body Ratio (Clean)", step=0.05, group="CISD A (estricto)")
+i_perDir       = input.bool(true,  "Rearme por dirección (2ª señal contraria)", group="CISD A (estricto)")
+i_doubtPersist = input.bool(true,  "Dudoso persistente (muere con vela contraria)", group="CISD A (estricto)")
+i_hour9        = input.bool(false, "CISD también a las 9:00 (entrada 13:00)", group="CISD A (estricto)")
+i_tierB        = input.bool(true,  "Tier B: regla universal (barrido + cierre a través del open)", group="CISD B (universal)")
+i_bMinBody     = input.float(1.0,  "Tier B: cuerpo mínimo del OB (pips)", step=0.5, group="CISD B (universal)")
+i_noBFri       = input.bool(true,  "Apagar tier B los viernes (WR 58-61% en 26 años)", group="CISD B (universal)")
+i_noB21        = input.bool(true,  "Sin tier B en la vela de las 21:00 (entradas 1:00 muy risky)", group="CISD B (universal)")
+i_bWick        = input.bool(true,  "Tier B: mecha en dirección del CISD < cuerpo", group="CISD B (universal)")
+i_bRango       = input.bool(false, "Tier B modo calidad: cierre fuera del rango de la sesión", group="CISD B (universal)")
+i_bPrevDay     = input.bool(false, "Tier B: veto contra-tendencia si el día previo fue direccional", group="CISD B (universal)")
+i_bPrevPips    = input.float(40.0, "Umbral día previo direccional (pips)", step=5, group="CISD B (universal)")
+i_show01       = input.bool(true,  "Señales a las 01:00",  group="Horas")
+i_show05       = input.bool(true,  "Señales a las 05:00",  group="Horas")
+i_show09       = input.bool(true,  "Señales a las 09:00",  group="Horas")
+i_show13       = input.bool(true,  "Señales a las 13:00",  group="Horas")
+i_show17Line   = input.bool(true,  "Show 17:00 vertical line", group="Visual")
+i_showZone     = input.bool(true,  "Zona de entrada + línea de invalidación", group="Visual")
+i_zoneBars     = input.int(3,      "Anchura del mapa (velas)", minval=1, maxval=6, group="Visual")
+i_alertUni     = input.bool(true,  "Alerta unificada alert() con mensaje dinámico", group="Alertas")
+
+// ══════════════════════════════════════════════════════════════════
+// INPUTS — MÓDULO SMT (Forever Model)
+// ══════════════════════════════════════════════════════════════════
+i_smtMode    = input.string("Off", "Filtro SMT", options=["Off","Informar","Requerir SMT"], group="SMT (Forever Model)", tooltip="Off = comportamiento original. Informar = marca la señal pero no filtra. Requerir = solo valida señales con divergencia SMT en el barrido.")
+i_autoSMT    = input.bool(true,    "Detectar par correlacionado automáticamente", group="SMT (Forever Model)")
+i_smtPair    = input.symbol("GBPUSD", "Par manual 1", group="SMT (Forever Model)", inline="s1")
+i_inverse1   = input.bool(false,   "Inverso", group="SMT (Forever Model)", inline="s1")
+i_useSmt2    = input.bool(false,   "2º par", group="SMT (Forever Model)", inline="s2")
+i_smtPair2   = input.symbol("DXY", "", group="SMT (Forever Model)", inline="s2")
+i_inverse2   = input.bool(true,    "Inverso", group="SMT (Forever Model)", inline="s2")
+i_smtBoth    = input.bool(false,   "Exigir divergencia en AMBOS pares", group="SMT (Forever Model)")
+i_smtPersist = input.bool(true,    "La SMT sigue válida si el par barre después", group="SMT (Forever Model)")
+i_smtDraw    = input.bool(true,    "Dibujar líneas SMT", group="SMT (Forever Model)")
+i_smtColor   = input.color(color.new(#000000, 0), "Color SMT", group="SMT (Forever Model)")
+
+// ══════════════════════════════════════════════════════════════════
+// INPUTS — MÓDULO FVG HTF (Forever Model)
+// ══════════════════════════════════════════════════════════════════
+i_fvgMode  = input.string("Off", "Filtro FVG HTF", options=["Off","Informar","Señal dentro de FVG","FVG activo a favor"], group="FVG HTF (Forever Model)", tooltip="Off = comportamiento original. 'Señal dentro de FVG' exige que la vela CISD solape un FVG del HTF en la misma dirección. 'FVG activo a favor' solo exige que exista uno sin mitigar.")
+i_fvgTF    = input.timeframe("1D", "Timeframe del FVG", group="FVG HTF (Forever Model)")
+i_fvgShow  = input.bool(true,  "Dibujar FVGs", group="FVG HTF (Forever Model)")
+i_fvgCol   = input.color(color.new(#787b86, 88), "Color FVG", group="FVG HTF (Forever Model)", inline="fc")
+i_fvgCE    = input.bool(true,  "CE", group="FVG HTF (Forever Model)", inline="fc")
+i_fvgMax   = input.int(8, "Máx. FVGs vivos", minval=1, maxval=20, group="FVG HTF (Forever Model)")
+
+// ══════════════════════════════════════════════════════════════════
+// INPUTS — GESTIÓN / BACKTEST (Forever Model)
+// ══════════════════════════════════════════════════════════════════
+i_sim        = input.bool(true, "Simular operaciones y medir resultados", group="Gestión / Backtest")
+i_entryMode  = input.string("Apertura vela de entrada", "Entrada", options=["Apertura vela de entrada","Zona de retroceso (límite)"], group="Gestión / Backtest")
+i_slMode     = input.string("Invalidación del mapa", "Stop Loss", options=["Invalidación del mapa","Extremo de la vela CISD","Open del OB"], group="Gestión / Backtest")
+i_tpMode     = input.string("Múltiplo R", "Take Profit", options=["Múltiplo R","ERL (extremo opuesto de la sesión)","ERL (FVG HTF)"], group="Gestión / Backtest")
+i_rTarget    = input.float(2.0, "Múltiplo R objetivo", step=0.5, minval=0.5, group="Gestión / Backtest")
+i_maxBars    = input.int(6, "Máx. velas en operación (H4)", minval=1, maxval=30, group="Gestión / Backtest")
+i_simCorr    = input.bool(true, "Incluir correcciones en la simulación", group="Gestión / Backtest")
+i_projShow   = input.bool(true, "Dibujar proyecciones del OB", group="Gestión / Backtest", inline="pj")
+i_projInput  = input.string("1, 2, 3", "", group="Gestión / Backtest", inline="pj")
+i_showMarks  = input.bool(true, "Marcadores de resultado (TP / SL / no fill)", group="Gestión / Backtest")
+i_showRejected = input.bool(false, "Mostrar señales descartadas por los filtros", group="Gestión / Backtest")
+
+// ══════════════════════════════════════════════════════════════════
+// INPUTS — TABLAS
+// ══════════════════════════════════════════════════════════════════
+i_tblStats = input.bool(true,  "Tabla de estadísticas", group="Tablas")
+i_tblLog   = input.bool(true,  "Registro de operaciones", group="Tablas")
+i_logRows  = input.int(12, "Filas del registro", minval=3, maxval=40, group="Tablas")
+i_tblPos1  = input.string("Top", "Posición tabla", options=["Top","Middle","Bottom"], group="Tablas", inline="tp")
+i_tblPos2  = input.string("Right", "", options=["Left","Centre","Right"], group="Tablas", inline="tp")
+
+// ══════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════
+const color NO_COLOR = color.new(color.white, 100)
+
+f_tablePos(v, h) =>
+    switch h
+        "Left"   => v == "Top" ? position.top_left   : v == "Middle" ? position.middle_left   : position.bottom_left
+        "Centre" => v == "Top" ? position.top_center : v == "Middle" ? position.middle_center : position.bottom_center
+        =>          v == "Top" ? position.top_right  : v == "Middle" ? position.middle_right  : position.bottom_right
+
+f_cleanTicker(sym) =>
+    parts = str.split(sym, ":")
+    parts.get(parts.size() - 1)
+
+// Tabla de pares correlacionados del Forever Model
+f_autoSmtPair(t) =>
+    switch t
+        "ES1!"    => "NQ1!"
+        "NQ1!"    => "ES1!"
+        "GC1!"    => "SI1!"
+        "SI1!"    => "GC1!"
+        "CL1!"    => "RB1!"
+        "RB1!"    => "CL1!"
+        "6E1!"    => "6B1!"
+        "6B1!"    => "6E1!"
+        "BTCUSD"  => "ETHUSD"
+        "ETHUSD"  => "BTCUSD"
+        "BTCUSDT" => "ETHUSDT"
+        "ETHUSDT" => "BTCUSDT"
+        "USDJPY"  => "DXY"
+        "USDCHF"  => "DXY"
+        "USDCAD"  => "DXY"
+        "DXY"     => "USDJPY"
+        "EURUSD"  => "GBPUSD"
+        "GBPUSD"  => "EURUSD"
+        "AUDUSD"  => "NZDUSD"
+        "NZDUSD"  => "AUDUSD"
+        "EURJPY"  => "GBPJPY"
+        "GBPJPY"  => "EURJPY"
+        "XAUUSD"  => "XAGUSD"
+        "XAGUSD"  => "XAUUSD"
+        => na
+
+string _autoPair       = f_autoSmtPair(syminfo.ticker)
+bool   _autoFound      = i_autoSMT and not na(_autoPair)
+string resolvedSmtPair = _autoFound ? _autoPair : i_smtPair
+
+// ══════════════════════════════════════════════════════════════════
+// BAR CALCULATIONS (original)
+// ══════════════════════════════════════════════════════════════════
+_nyH    = hour(time, "America/New_York")
+_is17   = _nyH == 17
+_rng    = math.max(high - low, 0.00001)
+_body   = math.abs(close - open)
+_bodyR  = _body / _rng
+_isBull = close > open
+_isBear = close < open
+_upWick = _isBull ? high - close : high - open
+_dnWick = _isBull ? open - low   : close - low
+float _pip = syminfo.mintick * 10
+// rango medio de las 6 velas previas (para escalar la zona de entrada)
+float _atr6 = ta.sma(high - low, 6)[1]
+
+int _tfMs = timeframe.in_seconds() * 1000
+
+// ══════════════════════════════════════════════════════════════════
+// MÓDULO FVG HTF (Forever Model, versión compacta)
+// ══════════════════════════════════════════════════════════════════
+type HFVG
+    box   bx
+    line  mid
+    label lbl
+    float hi
+    float lo
+    bool  bull
+    bool  mitigated
+    float erl
+
+var HFVG[] hfvgs = array.new<HFVG>()
+
+f_delFVG(HFVG f) =>
+    if not na(f.bx)
+        box.delete(f.bx)
+    if not na(f.mid)
+        line.delete(f.mid)
+    if not na(f.lbl)
+        label.delete(f.lbl)
+
+[_fh1, _fh3, _fl1, _fl3, _fc1] = request.security(syminfo.tickerid, i_fvgTF,
+     [high[1], high[3], low[1], low[3], close[1]], lookahead=barmerge.lookahead_on)
+[_fh2, _fl2, _ft1, _ft3, _ftime] = request.security(syminfo.tickerid, i_fvgTF,
+     [high[2], low[2], time[1], time[3], time], lookahead=barmerge.lookahead_on)
+
+bool _newHTF = ta.change(_ftime) != 0
+
+if barstate.isconfirmed
+    // 1) limpieza: FVG invalidado por cierre HTF al otro lado
+    if _newHTF and hfvgs.size() > 0
+        for k = hfvgs.size() - 1 to 0
+            HFVG f = hfvgs.get(k)
+            if f.bull ? _fc1 < f.lo : _fc1 > f.hi
+                f_delFVG(f)
+                hfvgs.remove(k)
+    // 2) mitigación y ERL corrido
+    if hfvgs.size() > 0
+        for k = hfvgs.size() - 1 to 0
+            HFVG f = hfvgs.get(k)
+            if not f.mitigated
+                f.erl := f.bull ? math.max(f.erl, high) : math.min(f.erl, low)
+                if f.bull ? low <= f.hi : high >= f.lo
+                    f.mitigated := true
+            else if f.bull ? high > f.erl : low < f.erl
+                f_delFVG(f)
+                hfvgs.remove(k)
+    // 3) nuevos FVG en cada vela HTF cerrada
+    if _newHTF and not na(_fh3) and not na(_fl3)
+        bool _newBull = _fl1 > _fh3
+        bool _newBear = _fh1 < _fl3
+        if _newBull or _newBear
+            float _hi  = _newBull ? _fl1 : _fl3
+            float _lo  = _newBull ? _fh3 : _fh1
+            float _mid = (_hi + _lo) / 2
+            float _erl = _newBull ? math.max(_fh1, _fh2) : math.min(_fl1, _fl2)
+            box   _bx  = na
+            line  _mln = na
+            label _lb  = na
+            if i_fvgShow
+                _bx  := box.new(int(_ft3), _hi, int(_ft1), _lo, xloc=xloc.bar_time, bgcolor=i_fvgCol, border_color=NO_COLOR, border_width=0)
+                _mln := line.new(int(_ft3), _mid, int(_ft1), _mid, xloc=xloc.bar_time, color=i_fvgCE ? color.new(#787b86, 55) : NO_COLOR, style=line.style_dotted, width=1)
+                _lb  := label.new(int(_ft3), _newBull ? _lo : _hi, _newBull ? "+ FVG" : "- FVG", xloc=xloc.bar_time,
+                                  style=_newBull ? label.style_label_upper_left : label.style_label_lower_left,
+                                  color=NO_COLOR, textcolor=color.new(#787b86, 0), size=size.small,
+                                  text_font_family=font.family_monospace)
+            hfvgs.push(HFVG.new(_bx, _mln, _lb, _hi, _lo, _newBull, false, _erl))
+        while hfvgs.size() > i_fvgMax
+            f_delFVG(hfvgs.get(0))
+            hfvgs.remove(0)
+    // 4) extender los FVG vivos hasta la vela actual
+    if i_fvgShow and hfvgs.size() > 0
+        for f in hfvgs
+            if not na(f.bx)
+                box.set_right(f.bx, time + _tfMs * 2)
+                if not na(f.mid)
+                    line.set_x2(f.mid, time + _tfMs * 2)
+
+// Estado FVG en la vela actual (para los filtros)
+f_fvgState(bool wantBull) =>
+    bool anyActive = false
+    bool overlap   = false
+    float erlLvl   = na
+    if hfvgs.size() > 0
+        for f in hfvgs
+            if f.bull == wantBull
+                anyActive := true
+                if low <= f.hi and high >= f.lo
+                    overlap := true
+                erlLvl := na(erlLvl) ? f.erl : (wantBull ? math.max(erlLvl, f.erl) : math.min(erlLvl, f.erl))
+    [anyActive, overlap, erlLvl]
+
+// ══════════════════════════════════════════════════════════════════
+// MÓDULO SMT (Forever Model, anclado a la sesión de las 17:00)
+// ══════════════════════════════════════════════════════════════════
+[_p1H_raw, _p1L_raw] = request.security(resolvedSmtPair, timeframe.period, [high, low])
+var float _p2H_raw = na
+var float _p2L_raw = na
+if i_useSmt2
+    [_x, _y] = request.security(i_smtPair2, timeframe.period, [high, low])
+    _p2H_raw := _x
+    _p2L_raw := _y
+
+float _p1H = i_inverse1 and _p1L_raw > 0 ? 1.0 / _p1L_raw : _p1H_raw
+float _p1L = i_inverse1 and _p1H_raw > 0 ? 1.0 / _p1H_raw : _p1L_raw
+float _p2H = i_inverse2 and _p2L_raw > 0 ? 1.0 / _p2L_raw : _p2H_raw
+float _p2L = i_inverse2 and _p2H_raw > 0 ? 1.0 / _p2H_raw : _p2L_raw
+
+// Estado de sesión del par correlacionado (reset 17:00 NY, igual que el motor)
+var float _sRefH   = na
+var float _sRefL   = na
+var int   _s17Idx  = na
+var float _p1RefH  = na
+var float _p1RefL  = na
+var float _p2RefH  = na
+var float _p2RefL  = na
+var bool  _p1SwH   = false
+var bool  _p1SwL   = false
+var bool  _p2SwH   = false
+var bool  _p2SwL   = false
+var bool  _swHany  = false
+var bool  _swLany  = false
+var bool  _smtBearOK = false
+var bool  _smtBullOK = false
+
+if barstate.isconfirmed
+    if _is17
+        _sRefH     := high
+        _sRefL     := low
+        _s17Idx    := bar_index
+        _p1RefH    := _p1H
+        _p1RefL    := _p1L
+        _p2RefH    := _p2H
+        _p2RefL    := _p2L
+        _p1SwH     := false
+        _p1SwL     := false
+        _p2SwH     := false
+        _p2SwL     := false
+        _swHany    := false
+        _swLany    := false
+        _smtBearOK := false
+        _smtBullOK := false
+    else if not na(_sRefH)
+        // el par actualiza sus banderas ANTES de evaluar la divergencia
+        if not na(_p1RefH)
+            if _p1H > _p1RefH
+                _p1SwH := true
+            if _p1L < _p1RefL
+                _p1SwL := true
+        if i_useSmt2 and not na(_p2RefH)
+            if _p2H > _p2RefH
+                _p2SwH := true
+            if _p2L < _p2RefL
+                _p2SwL := true
+
+        bool _dv1B = not _p1SwH
+        bool _dv1L = not _p1SwL
+        bool _dv2B = i_useSmt2 and not _p2SwH
+        bool _dv2L = i_useSmt2 and not _p2SwL
+        bool _okB  = i_useSmt2 ? (i_smtBoth ? (_dv1B and _dv2B) : (_dv1B or _dv2B)) : _dv1B
+        bool _okL  = i_useSmt2 ? (i_smtBoth ? (_dv1L and _dv2L) : (_dv1L or _dv2L)) : _dv1L
+
+        // latch en el primer barrido propio de la sesión
+        if high > _sRefH and not _swHany
+            _swHany    := true
+            _smtBearOK := _okB
+            if _okB and i_smtDraw and not na(_s17Idx)
+                line.new(_s17Idx, _sRefH, bar_index, high, color=i_smtColor, width=1)
+                label.new(int(math.avg(_s17Idx, bar_index)), math.max(_sRefH, high), "SMT " + f_cleanTicker(resolvedSmtPair),
+                          style=label.style_label_down, color=NO_COLOR, textcolor=i_smtColor, size=size.small,
+                          text_font_family=font.family_monospace)
+        if low < _sRefL and not _swLany
+            _swLany    := true
+            _smtBullOK := _okL
+            if _okL and i_smtDraw and not na(_s17Idx)
+                line.new(_s17Idx, _sRefL, bar_index, low, color=i_smtColor, width=1)
+                label.new(int(math.avg(_s17Idx, bar_index)), math.min(_sRefL, low), "SMT " + f_cleanTicker(resolvedSmtPair),
+                          style=label.style_label_up, color=NO_COLOR, textcolor=i_smtColor, size=size.small,
+                          text_font_family=font.family_monospace)
+
+        // sin persistencia: la SMT muere si el par acaba barriendo también
+        if not i_smtPersist
+            if _smtBearOK and not _okB
+                _smtBearOK := false
+            if _smtBullOK and not _okL
+                _smtBullOK := false
+
+// ── Estado FVG y banderas de filtro por dirección ─────────────────
+[_fvgBullAny, _fvgBullOv, _erlBullFVG] = f_fvgState(true)
+[_fvgBearAny, _fvgBearOv, _erlBearFVG] = f_fvgState(false)
+
+bool _smtPassBear = i_smtMode != "Requerir SMT" or _smtBearOK
+bool _smtPassBull = i_smtMode != "Requerir SMT" or _smtBullOK
+bool _fvgPassBear = i_fvgMode == "Señal dentro de FVG" ? _fvgBearOv : (i_fvgMode == "FVG activo a favor" ? _fvgBearAny : true)
+bool _fvgPassBull = i_fvgMode == "Señal dentro de FVG" ? _fvgBullOv : (i_fvgMode == "FVG activo a favor" ? _fvgBullAny : true)
+bool _passBear    = _smtPassBear and _fvgPassBear
+bool _passBull    = _smtPassBull and _fvgPassBull
+
+// ══════════════════════════════════════════════════════════════════
+// STATE VARIABLES (motor original)
+// ══════════════════════════════════════════════════════════════════
+var float _refH = na
+var float _refL = na
+var int   _ref17Idx = na
+
+// OB tier A — última vela significativa (bodyR >= i_obMinBody)
+var float _lBullO = na
+var float _lBullL = na
+var int   _lBullIdx = na
+var float _lBearO = na
+var float _lBearH = na
+var int   _lBearIdx = na
+
+// OB tier B — última vela contraria con cuerpo >= i_bMinBody pips
+var float _aBullO = na
+var int   _aBullIdx = na
+var float _aBearO = na
+var int   _aBearIdx = na
+
+// Rango de la sesión hasta la vela ANTERIOR (para i_bRango)
+var float _sessHi = na
+var float _sessLo = na
+
+// Neto del día previo (17:00→17:00) para i_bPrevDay
+var float _sess17Open = na
+var float _prevNet = na
+
+// Sweep state
+var bool _sweptH = false
+var bool _sweptL = false
+var int  _swIdx  = na
+
+// Fired flags por tier y dirección
+var bool _fABear = false
+var bool _fABull = false
+var bool _fBBear = false
+var bool _fBBull = false
+
+// Doubtful (tier A) por dirección
+var bool  _doubtBear  = false
+var float _dBearOBo   = na
+var int   _dBearOBidx = na
+var int   _dBearSwIdx = na
+var bool  _doubtBull  = false
+var float _dBullOBo   = na
+var int   _dBullOBidx = na
+var int   _dBullSwIdx = na
+
+// Signal flags (per bar)
+var bool _bearSig  = false   // tier A
+var bool _bullSig  = false
+var bool _bearSigB = false   // tier B
+var bool _bullSigB = false
+var bool _corrBull = false
+var bool _corrBear = false
+
+// Referencia de invalidación de la última señal A
+var float _sigBearHi = na
+var float _sigBearOp = na
+var float _sigBullLo = na
+var float _sigBullOp = na
+
+// [FM] OB usado por la señal (para el modo de SL "Open del OB")
+var float _sigObBear = na
+var float _sigObBull = na
+
+// ══════════════════════════════════════════════════════════════════
+// DETECTION — confirmed bars only (motor original, sin cambios)
+// ══════════════════════════════════════════════════════════════════
+if barstate.isconfirmed
+
+    _bearSig  := false
+    _bullSig  := false
+    _bearSigB := false
+    _bullSigB := false
+    _corrBull := false
+    _corrBear := false
+
+    // ── STEP 1: Session Reset at 17:00 ──────────────────────────
+    if _is17
+        _prevNet    := na(_sess17Open) ? na : close[1] - _sess17Open
+        _sess17Open := open
+        _refH       := high
+        _refL       := low
+        _ref17Idx   := bar_index
+        _sweptH     := false
+        _sweptL     := false
+        _swIdx      := na
+        _fABear     := false
+        _fABull     := false
+        _fBBear     := false
+        _fBBull     := false
+        _doubtBear  := false
+        _doubtBull  := false
+        _dBearOBo   := na
+        _dBearOBidx := na
+        _dBearSwIdx := na
+        _dBullOBo   := na
+        _dBullOBidx := na
+        _dBullSwIdx := na
+        _lBullO := na
+        _lBullL := na
+        _lBullIdx := na
+        _lBearO := na
+        _lBearH := na
+        _lBearIdx := na
+        _aBullO := na
+        _aBullIdx := na
+        _aBearO := na
+        _aBearIdx := na
+
+        if i_show17Line
+            line.new(bar_index, high * 1.001, bar_index, low * 0.999, color=color.gray, style=line.style_dotted, width=1, extend=extend.both)
+
+    // done del tier A (gobierna sweeps y máquina A)
+    bool _doneA = i_perDir ? (_fABear and _fABull) : (_fABear or _fABull)
+
+    // ── STEP 2: OB Tracking tier A ──────────────────────────────
+    if not na(_refH) and _bodyR >= i_obMinBody
+        if _isBull
+            _lBullO   := open
+            _lBullL   := low
+            _lBullIdx := bar_index
+        if _isBear
+            _lBearO   := open
+            _lBearH   := high
+            _lBearIdx := bar_index
+
+    // ── STEP 3: Sweep Detection ─────────────────────────────────
+    if not na(_refH) and not _doneA
+        if not _sweptH and high > _refH
+            _sweptH := true
+            _swIdx  := bar_index
+            if not na(_ref17Idx)
+                line.new(_ref17Idx, _refH, bar_index + 1, _refH, color=color.black, style=line.style_solid, width=1)
+
+        if not _sweptL and low < _refL
+            _sweptL := true
+            _swIdx  := bar_index
+            if not na(_ref17Idx)
+                line.new(_ref17Idx, _refL, bar_index + 1, _refL, color=color.black, style=line.style_solid, width=1)
+
+    // ── Valid CISD hours ────────────────────────────────────────
+    bool _validCISD = _nyH == 21 or _nyH == 1 or _nyH == 5 or (i_hour9 and _nyH == 9)
+    bool _fABearBar = false   // tier A disparó ESTA vela (suprime B misma vela)
+    bool _fABullBar = false
+
+    // ── STEP 5: Doubtful Resolution (tier A) ────────────────────
+    if not _doneA and _validCISD
+        if _doubtBear and not _fABear
+            bool _contBear = _isBear and _bodyR >= i_cisdMinBody and _dnWick < _body
+            if _contBear
+                _bearSig   := true
+                _fABear    := true
+                _fABearBar := true
+                _doubtBear := false
+                _sigBearHi := high
+                _sigBearOp := open
+                _sigObBear := _dBearOBo
+                if not na(_dBearOBo) and not na(_dBearSwIdx)
+                    line.new(_dBearSwIdx, _dBearOBo, bar_index, _dBearOBo, color=color.maroon, style=line.style_solid, width=2)
+                if not na(_dBearOBo) and not na(_dBearOBidx)
+                    line.new(_dBearOBidx, _dBearOBo, bar_index, _dBearOBo, color=color.red, style=line.style_solid, width=1)
+            else if i_doubtPersist
+                if _isBull
+                    _doubtBear := false
+            else
+                _doubtBear := false
+
+        if _doubtBull and not _fABull
+            bool _contBull = _isBull and _bodyR >= i_cisdMinBody and _upWick < _body
+            if _contBull
+                _bullSig   := true
+                _fABull    := true
+                _fABullBar := true
+                _doubtBull := false
+                _sigBullLo := low
+                _sigBullOp := open
+                _sigObBull := _dBullOBo
+                if not na(_dBullOBo) and not na(_dBullSwIdx)
+                    line.new(_dBullSwIdx, _dBullOBo, bar_index, _dBullOBo, color=color.maroon, style=line.style_solid, width=2)
+                if not na(_dBullOBo) and not na(_dBullOBidx)
+                    line.new(_dBullOBidx, _dBullOBo, bar_index, _dBullOBo, color=color.red, style=line.style_solid, width=1)
+            else if i_doubtPersist
+                if _isBear
+                    _doubtBull := false
+            else
+                _doubtBull := false
+
+    _doneA := i_perDir ? (_fABear and _fABull) : (_fABear or _fABull)
+
+    // ── STEP 4: CISD Check (tier A, estricto) ───────────────────
+    if not _doneA and _validCISD
+        if _sweptH and not na(_lBullO) and not _fABear
+            bool _trig = _isBear and close < _lBullO
+            if _trig
+                float _bearBodyR = _body / math.max(_body + _dnWick, 0.00001)
+                bool _clean = _bearBodyR >= i_cisdMinBody and _dnWick < _body and close < _lBullL
+                if _clean
+                    _bearSig   := true
+                    _fABear    := true
+                    _fABearBar := true
+                    _sigBearHi := high
+                    _sigBearOp := open
+                    _sigObBear := _lBullO
+                    if not na(_swIdx)
+                        line.new(_swIdx, _lBullO, bar_index, _lBullO, color=color.maroon, style=line.style_solid, width=2)
+                    if not na(_lBullIdx)
+                        line.new(_lBullIdx, _lBullO, bar_index, _lBullO, color=color.red, style=line.style_solid, width=1)
+                else if not _doubtBear
+                    _doubtBear  := true
+                    _dBearOBo   := _lBullO
+                    _dBearOBidx := _lBullIdx
+                    _dBearSwIdx := _swIdx
+
+        bool _doneA2 = i_perDir ? (_fABear and _fABull) : (_fABear or _fABull)
+
+        if not _doneA2 and _sweptL and not na(_lBearO) and not _fABull
+            bool _trig = _isBull and close > _lBearO
+            if _trig
+                float _bullBodyR = _body / math.max(_body + _upWick, 0.00001)
+                bool _clean = _bullBodyR >= i_cisdMinBody and _upWick < _body and close > _lBearH
+                if _clean
+                    _bullSig   := true
+                    _fABull    := true
+                    _fABullBar := true
+                    _sigBullLo := low
+                    _sigBullOp := open
+                    _sigObBull := _lBearO
+                    if not na(_swIdx)
+                        line.new(_swIdx, _lBearO, bar_index, _lBearO, color=color.maroon, style=line.style_solid, width=2)
+                    if not na(_lBearIdx)
+                        line.new(_lBearIdx, _lBearO, bar_index, _lBearO, color=color.red, style=line.style_solid, width=1)
+                else if not _doubtBull
+                    _doubtBull  := true
+                    _dBullOBo   := _lBearO
+                    _dBullOBidx := _lBearIdx
+                    _dBullSwIdx := _swIdx
+
+    // ── STEP 6: Tier B — regla universal ────────────────────────
+    bool _entryFri = dayofweek(time_close, "America/New_York") == dayofweek.friday
+    if i_tierB and _validCISD and (_sweptH or _sweptL) and not (i_noBFri and _entryFri) and not (i_noB21 and _nyH == 21)
+        bool _wickOKbear  = not i_bWick or _dnWick < _body
+        bool _wickOKbull  = not i_bWick or _upWick < _body
+        bool _rangoOKbear = not i_bRango or (not na(_sessLo) and close < _sessLo)
+        bool _rangoOKbull = not i_bRango or (not na(_sessHi) and close > _sessHi)
+        bool _prevOKbear  = not i_bPrevDay or na(_prevNet) or _prevNet < i_bPrevPips * _pip
+        bool _prevOKbull  = not i_bPrevDay or na(_prevNet) or _prevNet > -i_bPrevPips * _pip
+        if not _fABear and not _fBBear and not _fABearBar and not na(_aBullO) and _isBear and close < _aBullO and _wickOKbear and _rangoOKbear and _prevOKbear
+            _bearSigB  := true
+            _fBBear    := true
+            _sigObBear := _aBullO
+            if not na(_aBullIdx)
+                line.new(_aBullIdx, _aBullO, bar_index, _aBullO, color=color.orange, style=line.style_solid, width=2)
+        if not _fABull and not _fBBull and not _fABullBar and not na(_aBearO) and _isBull and close > _aBearO and _wickOKbull and _rangoOKbull and _prevOKbull
+            _bullSigB  := true
+            _fBBull    := true
+            _sigObBull := _aBearO
+            if not na(_aBearIdx)
+                line.new(_aBearIdx, _aBearO, bar_index, _aBearO, color=color.orange, style=line.style_solid, width=2)
+
+    // ── OB tier B: se actualiza AL FINAL (aplica a la vela siguiente)
+    if not na(_refH) and _body >= i_bMinBody * _pip
+        if _isBull
+            _aBullO   := open
+            _aBullIdx := bar_index
+        if _isBear
+            _aBearO   := open
+            _aBearIdx := bar_index
+
+    // ── Rango de sesión: se actualiza AL FINAL (aplica a la vela siguiente)
+    if _is17
+        _sessHi := high
+        _sessLo := low
+    else if not na(_sessHi)
+        _sessHi := math.max(_sessHi, high)
+        _sessLo := math.min(_sessLo, low)
+
+    // ── CORRECCIONES (v5): solo si la señal original FALLA de verdad ──
+    if _bearSig[1] and not na(_sigBearHi) and (high > _sigBearHi or close > _sigBearOp)
+        _corrBull := true
+    if _bullSig[1] and not na(_sigBullLo) and (low < _sigBullLo or close < _sigBullOp)
+        _corrBear := true
+
+// ══════════════════════════════════════════════════════════════════
+// CAPA DE FILTRO (Forever Model) — el motor no se toca
+// ══════════════════════════════════════════════════════════════════
+var bool _bearSigF  = false
+var bool _bullSigF  = false
+var bool _bearSigBF = false
+var bool _bullSigBF = false
+var bool _corrBullF = false
+var bool _corrBearF = false
+var bool _rejBear   = false
+var bool _rejBull   = false
+
+// proyecciones del OB
+var float[] _projs = array.new<float>()
+if barstate.isfirst
+    for part in str.split(str.replace_all(i_projInput, " ", ""), ",")
+        v = str.tonumber(part)
+        if not na(v)
+            _projs.push(v)
+
+// ══════════════════════════════════════════════════════════════════
+// SIMULACIÓN DE OPERACIONES (Forever Model: OB → SL → proyección)
+// ══════════════════════════════════════════════════════════════════
+var bool  _pend      = false
+var bool  _pendLong  = false
+var int   _pendTier  = 0
+var float _pendLimit = na
+var float _pendSL    = na
+var int   _pendBar   = na
+
+var bool  _inTrade = false
+var bool  _tLong   = false
+var int   _tTier   = 0
+var float _tEntry  = na
+var float _tSL     = na
+var float _tTP     = na
+var int   _tBar    = na
+var int   _tTime   = na
+
+// contadores en arrays: Pine no permite asignar globales dentro de funciones,
+// pero sí mutar arrays.  Índice 0 = tier A, 1 = tier B, 2 = correcciones.
+var int[]   _cnt     = array.new_int(3, 0)
+var int[]   _wins    = array.new_int(3, 0)
+var float[] _sumR    = array.new_float(3, 0.0)
+var int     _nNoFill = 0
+
+var string[] _logTime = array.new_string()
+var string[] _logDir  = array.new_string()
+var string[] _logTier = array.new_string()
+var string[] _logRes  = array.new_string()
+var string[] _logR    = array.new_string()
+
+var bool _mWin    = false
+var bool _mLoss   = false
+var bool _mFlat   = false
+var bool _mNoFill = false
+
+f_tierName(int t) => t == 1 ? "A" : t == 2 ? "B" : "Corr"
+
+f_logTrade(int t0, bool isLong, int tier, string res, float r) =>
+    _logTime.push(str.format_time(t0, "dd/MM/yy HH:mm", "America/New_York"))
+    _logDir.push(isLong ? "Long" : "Short")
+    _logTier.push(f_tierName(tier))
+    _logRes.push(res)
+    _logR.push(str.tostring(r, "#.##"))
+    while _logTime.size() > 60
+        _logTime.shift()
+        _logDir.shift()
+        _logTier.shift()
+        _logRes.shift()
+        _logR.shift()
+
+f_countTrade(int tier, bool win, float r) =>
+    int idx = math.max(0, math.min(2, tier - 1))
+    _cnt.set(idx, _cnt.get(idx) + 1)
+    _sumR.set(idx, _sumR.get(idx) + r)
+    if win
+        _wins.set(idx, _wins.get(idx) + 1)
+
+if barstate.isconfirmed
+    // ── señales tras filtros ──────────────────────────────────────
+    _bearSigF  := _bearSig  and _passBear
+    _bullSigF  := _bullSig  and _passBull
+    _bearSigBF := _bearSigB and _passBear
+    _bullSigBF := _bullSigB and _passBull
+    _corrBullF := _corrBull and _passBull
+    _corrBearF := _corrBear and _passBear
+    _rejBear   := (_bearSig or _bearSigB or _corrBear) and not _passBear
+    _rejBull   := (_bullSig or _bullSigB or _corrBull) and not _passBull
+
+    _mWin    := false
+    _mLoss   := false
+    _mFlat   := false
+    _mNoFill := false
+
+    bool _wasInTrade = _inTrade
+
+    // ── 1) gestión de la operación abierta ────────────────────────
+    if _inTrade
+        float _risk  = math.max(math.abs(_tEntry - _tSL), syminfo.mintick)
+        bool  _hitSL = _tLong ? low <= _tSL : high >= _tSL
+        bool  _hitTP = _tLong ? high >= _tTP : low <= _tTP
+        if _hitSL
+            // si ambos en la misma vela se asume el peor caso
+            f_countTrade(_tTier, false, -1.0)
+            f_logTrade(_tTime, _tLong, _tTier, "SL", -1.0)
+            _inTrade := false
+            _mLoss   := true
+        else if _hitTP
+            float _r = math.abs(_tTP - _tEntry) / _risk
+            f_countTrade(_tTier, true, _r)
+            f_logTrade(_tTime, _tLong, _tTier, "TP", _r)
+            _inTrade := false
+            _mWin    := true
+        else if bar_index - _tBar >= i_maxBars
+            float _r = (_tLong ? close - _tEntry : _tEntry - close) / _risk
+            f_countTrade(_tTier, _r > 0, _r)
+            f_logTrade(_tTime, _tLong, _tTier, "Tiempo", _r)
+            _inTrade := false
+            _mFlat   := true
+
+    // ── 2) ejecución de la orden pendiente ────────────────────────
+    if _pend and not _wasInTrade
+        bool  _filled = false
+        float _entry  = na
+        if i_entryMode == "Apertura vela de entrada"
+            _filled := true
+            _entry  := open
+        else
+            bool _touch = _pendLong ? low <= _pendLimit : high >= _pendLimit
+            if _touch
+                _filled := true
+                _entry  := _pendLimit
+        if _filled
+            float _risk = math.max(math.abs(_entry - _pendSL), syminfo.mintick)
+            float _tp   = _pendLong ? _entry + i_rTarget * _risk : _entry - i_rTarget * _risk
+            if i_tpMode == "ERL (extremo opuesto de la sesión)"
+                float _erl = _pendLong ? _sessHi : _sessLo
+                if not na(_erl) and (_pendLong ? _erl - _entry : _entry - _erl) >= 0.5 * _risk
+                    _tp := _erl
+            else if i_tpMode == "ERL (FVG HTF)"
+                float _erl = _pendLong ? _erlBullFVG : _erlBearFVG
+                if not na(_erl) and (_pendLong ? _erl - _entry : _entry - _erl) >= 0.5 * _risk
+                    _tp := _erl
+            _inTrade := true
+            _tLong   := _pendLong
+            _tTier   := _pendTier
+            _tEntry  := _entry
+            _tSL     := _pendSL
+            _tTP     := _tp
+            _tBar    := bar_index
+            _tTime   := time
+            _pend    := false
+            // la propia vela de entrada ya puede resolver la operación
+            bool _hitSL2 = _tLong ? low <= _tSL : high >= _tSL
+            bool _hitTP2 = _tLong ? high >= _tTP : low <= _tTP
+            if _hitSL2
+                f_countTrade(_tTier, false, -1.0)
+                f_logTrade(_tTime, _tLong, _tTier, "SL", -1.0)
+                _inTrade := false
+                _mLoss   := true
+            else if _hitTP2
+                float _r2 = math.abs(_tTP - _tEntry) / _risk
+                f_countTrade(_tTier, true, _r2)
+                f_logTrade(_tTime, _tLong, _tTier, "TP", _r2)
+                _inTrade := false
+                _mWin    := true
+        else if bar_index - _pendBar >= i_zoneBars
+            _pend     := false
+            _nNoFill += 1
+            _mNoFill := true
+    else if _pend and _wasInTrade
+        _pend := false
+
+    // ── 3) mapa de entrada + proyecciones + nueva orden pendiente ──
+    bool _sigBearAny = _bearSigF or _bearSigBF or (i_simCorr and _corrBearF)
+    bool _sigBullAny = _bullSigF or _bullSigBF or (i_simCorr and _corrBullF)
+
+    if _sigBearAny or _sigBullAny
+        float _a6 = na(_atr6) ? _rng : _atr6
+        float _bd = math.max(_body, math.max(_a6 * 0.20, _pip * 2))
+        float _sz = _bd / math.max(_a6, syminfo.mintick)
+        float _f1 = _sz >= 1.5 ? 0.25 : _sz >= 0.75 ? 0.40 : 0.55
+        float _f2 = _sz >= 1.5 ? 0.45 : _sz >= 0.75 ? 0.65 : 0.90
+        float _fi = _sz >= 1.5 ? 0.65 : 1.00
+        bool  _long = _sigBullAny
+        int   _tier = (_bearSigF or _bullSigF) ? 1 : ((_bearSigBF or _bullSigBF) ? 2 : 3)
+
+        if i_showZone
+            if _sigBearAny
+                box.new(bar_index, close + _f2 * _bd, bar_index + i_zoneBars, close + _f1 * _bd, bgcolor=color.new(color.teal, 82), border_color=color.new(color.teal, 40))
+                line.new(bar_index, close + _fi * _bd, bar_index + i_zoneBars, close + _fi * _bd, color=color.red, style=line.style_dashed, width=2)
+            if _sigBullAny
+                box.new(bar_index, close - _f1 * _bd, bar_index + i_zoneBars, close - _f2 * _bd, bgcolor=color.new(color.teal, 82), border_color=color.new(color.teal, 40))
+                line.new(bar_index, close - _fi * _bd, bar_index + i_zoneBars, close - _fi * _bd, color=color.red, style=line.style_dashed, width=2)
+
+        // SL según el modo elegido
+        float _sl = na
+        if i_slMode == "Invalidación del mapa"
+            _sl := _long ? close - _fi * _bd : close + _fi * _bd
+        else if i_slMode == "Extremo de la vela CISD"
+            _sl := _long ? low : high
+        else
+            _sl := _long ? _sigObBull : _sigObBear
+            if na(_sl) or (_long ? _sl >= close : _sl <= close)
+                _sl := _long ? close - _fi * _bd : close + _fi * _bd
+
+        // proyecciones del OB (Forever Model)
+        if i_projShow and _projs.size() > 0
+            float _rk = math.max(math.abs(close - _sl), syminfo.mintick)
+            for dv in _projs
+                float _pp = _long ? close + _rk * dv : close - _rk * dv
+                line.new(bar_index, _pp, bar_index + i_zoneBars * 2, _pp,
+                         color=_long ? color.new(#0068bd, 30) : color.new(#bd0000, 30), width=1)
+                label.new(bar_index + i_zoneBars * 2, _pp, "+" + str.tostring(dv, "#.#"), xloc=xloc.bar_index,
+                          style=_long ? label.style_label_down : label.style_label_up,
+                          color=NO_COLOR, textcolor=_long ? color.new(#0068bd, 0) : color.new(#bd0000, 0),
+                          size=size.tiny, text_font_family=font.family_monospace)
+
+        if i_sim
+            _pend      := true
+            _pendLong  := _long
+            _pendTier  := _tier
+            _pendSL    := _sl
+            _pendBar   := bar_index
+            _pendLimit := _long ? close - (_f1 + _f2) / 2 * _bd : close + (_f1 + _f2) / 2 * _bd
+
+// ══════════════════════════════════════════════════════════════════
+// ENTRY ARROWS — aparecen en la vela DESPUÉS de la confirmación
+// ══════════════════════════════════════════════════════════════════
+bool _showEntry = (_nyH == 1 and i_show01) or (_nyH == 5 and i_show05) or (_nyH == 9 and i_show09) or (i_hour9 and _nyH == 13 and i_show13)
+bool _showCorr  = (_nyH == 5 and i_show05) or (_nyH == 9 and i_show09) or (_nyH == 13 and i_show13)
+
+plotshape(_bearSigF[1] and _showEntry, title="Sell A", location=location.abovebar,
+          style=shape.triangledown, color=color.red,    size=size.small)
+plotshape(_bullSigF[1] and _showEntry, title="Buy A",  location=location.belowbar,
+          style=shape.triangleup,   color=color.green,  size=size.small)
+
+plotshape(_bearSigBF[1] and _showEntry, title="Sell B", location=location.abovebar,
+          style=shape.triangledown, color=color.orange, size=size.small)
+plotshape(_bullSigBF[1] and _showEntry, title="Buy B",  location=location.belowbar,
+          style=shape.triangleup,   color=color.orange, size=size.small)
+
+plotshape(_corrBullF[1] and _showCorr, title="Correction Buy",  location=location.belowbar,
+          style=shape.triangleup,   color=color.green, size=size.small)
+plotshape(_corrBearF[1] and _showCorr, title="Correction Sell", location=location.abovebar,
+          style=shape.triangledown, color=color.red,   size=size.small)
+
+// señales descartadas por los filtros (opcional, para comparar A/B)
+plotshape(i_showRejected and _rejBear[1] and _showEntry, title="Descartada bajista", location=location.abovebar,
+          style=shape.triangledown, color=color.new(color.gray, 40), size=size.tiny)
+plotshape(i_showRejected and _rejBull[1] and _showEntry, title="Descartada alcista", location=location.belowbar,
+          style=shape.triangleup,   color=color.new(color.gray, 40), size=size.tiny)
+
+// ── Marcadores de resultado (Forever Model) ───────────────────────
+plotshape(i_showMarks and _mWin,    title="TP alcanzado", location=location.abovebar,
+          style=shape.diamond, color=color.new(#00a113, 0), size=size.tiny)
+plotshape(i_showMarks and _mLoss,   title="SL",           location=location.belowbar,
+          style=shape.xcross,  color=color.new(#ff5252, 0), size=size.tiny)
+plotshape(i_showMarks and _mFlat,   title="Cierre por tiempo", location=location.abovebar,
+          style=shape.cross,   color=color.new(#787b86, 0), size=size.tiny)
+plotshape(i_showMarks and _mNoFill, title="Sin entrada",  location=location.abovebar,
+          style=shape.diamond, color=color.new(#ea9023, 0), size=size.tiny)
+
+// ══════════════════════════════════════════════════════════════════
+// ALERTAS
+// ══════════════════════════════════════════════════════════════════
+if i_alertUni and barstate.isconfirmed
+    int    _nH = (_nyH + 4) % 24
+    string _hs = str.tostring(_nH) + ":00"
+    bool _aEntry = (_nH == 1 and i_show01) or (_nH == 5 and i_show05) or (_nH == 9 and i_show09) or (i_hour9 and _nH == 13 and i_show13)
+    bool _aCorr  = (_nH == 5 and i_show05) or (_nH == 9 and i_show09) or (_nH == 13 and i_show13)
+    string _smtTag = i_smtMode == "Off" ? "" : (_smtBearOK or _smtBullOK ? " [SMT ✓]" : " [sin SMT]")
+    if _bearSigF and _aEntry
+        alert("CISD A BAJISTA confirmado — entrada a las " + _hs + _smtTag, alert.freq_once_per_bar)
+    if _bullSigF and _aEntry
+        alert("CISD A ALCISTA confirmado — entrada a las " + _hs + _smtTag, alert.freq_once_per_bar)
+    if _bearSigBF and _aEntry
+        alert("CISD B (universal) BAJISTA — entrada a las " + _hs + _smtTag, alert.freq_once_per_bar)
+    if _bullSigBF and _aEntry
+        alert("CISD B (universal) ALCISTA — entrada a las " + _hs + _smtTag, alert.freq_once_per_bar)
+    if _corrBullF and _aCorr
+        alert("CORRECCIÓN ALCISTA (señal original invalidada) — entrada a las " + _hs, alert.freq_once_per_bar)
+    if _corrBearF and _aCorr
+        alert("CORRECCIÓN BAJISTA (señal original invalidada) — entrada a las " + _hs, alert.freq_once_per_bar)
+
+alertcondition(_bearSigF[1] and _showEntry,  "Bearish Entry A",    "CISD A Bajista confirmado — EURUSD H4")
+alertcondition(_bullSigF[1] and _showEntry,  "Bullish Entry A",    "CISD A Alcista confirmado — EURUSD H4")
+alertcondition(_bearSigBF[1] and _showEntry, "Bearish Entry B",    "CISD B (universal) Bajista — EURUSD H4")
+alertcondition(_bullSigBF[1] and _showEntry, "Bullish Entry B",    "CISD B (universal) Alcista — EURUSD H4")
+alertcondition(_corrBullF[1] and _showCorr,  "Correction Bullish", "Corrección alcista — vela de entrada cerró al alza — EURUSD H4")
+alertcondition(_corrBearF[1] and _showCorr,  "Correction Bearish", "Corrección bajista — vela de entrada cerró a la baja — EURUSD H4")
+
+// ══════════════════════════════════════════════════════════════════
+// TABLAS (Forever Model)
+// ══════════════════════════════════════════════════════════════════
+f_wr(int n, int w) => n > 0 ? str.tostring(w * 100.0 / n, "#.#") + "%" : "—"
+
+var table _tStats = na
+var table _tLog   = na
+
+if barstate.islast and i_tblStats
+    if not na(_tStats)
+        table.delete(_tStats)
+    _tStats := table.new(f_tablePos(i_tblPos1, i_tblPos2), 5, 7,
+                 bgcolor=color.new(color.black, 90), border_color=color.new(#1a1a1a, 0),
+                 border_width=1, frame_color=color.new(#1a1a1a, 0), frame_width=1)
+    color _tc = color.new(color.white, 0)
+    color _bg = color.new(color.black, 85)
+
+    string _mods = (i_smtMode == "Off" ? "" : "SMT:" + i_smtMode + "  ") + (i_fvgMode == "Off" ? "" : "FVG:" + i_fvgMode)
+    table.cell(_tStats, 0, 0, "CISD H4 + Forever Model" + (str.length(_mods) > 0 ? "  ·  " + _mods : ""),
+               text_color=_tc, bgcolor=_bg, text_size=size.small, text_halign=text.align_left,
+               text_font_family=font.family_monospace)
+    table.merge_cells(_tStats, 0, 0, 4, 0)
+
+    array<string> _hdr = array.from("Tier", "Ops", "TP", "WR", "R")
+    for c = 0 to 4
+        table.cell(_tStats, c, 1, _hdr.get(c), text_color=_tc, bgcolor=_bg, text_size=size.small,
+                   text_halign=text.align_center, text_font_family=font.family_monospace)
+
+    array<string> _rows = array.from("A", "B", "Corr")
+    int   _nT = 0
+    int   _wT = 0
+    float _rT = 0.0
+    for k = 0 to 2
+        int   _n = _cnt.get(k)
+        int   _w = _wins.get(k)
+        float _r = _sumR.get(k)
+        _nT += _n
+        _wT += _w
+        _rT += _r
+        table.cell(_tStats, 0, k + 2, _rows.get(k), text_color=_tc, bgcolor=_bg, text_size=size.small, text_font_family=font.family_monospace)
+        table.cell(_tStats, 1, k + 2, str.tostring(_n), text_color=_tc, bgcolor=_bg, text_size=size.small, text_font_family=font.family_monospace)
+        table.cell(_tStats, 2, k + 2, str.tostring(_w), text_color=_tc, bgcolor=_bg, text_size=size.small, text_font_family=font.family_monospace)
+        table.cell(_tStats, 3, k + 2, f_wr(_n, _w),     text_color=_tc, bgcolor=_bg, text_size=size.small, text_font_family=font.family_monospace)
+        table.cell(_tStats, 4, k + 2, str.tostring(_r, "#.#"), text_color=_r >= 0 ? color.new(#00c853, 0) : color.new(#ff5252, 0),
+                   bgcolor=_bg, text_size=size.small, text_font_family=font.family_monospace)
+
+    table.cell(_tStats, 0, 5, "TOTAL", text_color=_tc, bgcolor=_bg, text_size=size.small, text_font_family=font.family_monospace)
+    table.cell(_tStats, 1, 5, str.tostring(_nT), text_color=_tc, bgcolor=_bg, text_size=size.small, text_font_family=font.family_monospace)
+    table.cell(_tStats, 2, 5, str.tostring(_wT), text_color=_tc, bgcolor=_bg, text_size=size.small, text_font_family=font.family_monospace)
+    table.cell(_tStats, 3, 5, f_wr(_nT, _wT),    text_color=_tc, bgcolor=_bg, text_size=size.small, text_font_family=font.family_monospace)
+    table.cell(_tStats, 4, 5, str.tostring(_rT, "#.#"), text_color=_rT >= 0 ? color.new(#00c853, 0) : color.new(#ff5252, 0),
+               bgcolor=_bg, text_size=size.small, text_font_family=font.family_monospace)
+
+    table.cell(_tStats, 0, 6, "Sin entrada: " + str.tostring(_nNoFill) + "   Par SMT: " + f_cleanTicker(resolvedSmtPair) + (_autoFound ? " (auto)" : ""),
+               text_color=_tc, bgcolor=_bg, text_size=size.tiny, text_halign=text.align_left, text_font_family=font.family_monospace)
+    table.merge_cells(_tStats, 0, 6, 4, 6)
+
+if barstate.islast and i_tblLog
+    int _rows = math.min(i_logRows, _logTime.size())
+    if not na(_tLog)
+        table.delete(_tLog)
+    if _rows > 0
+        _tLog := table.new(f_tablePos(i_tblPos1 == "Top" ? "Bottom" : "Top", i_tblPos2), 5, _rows + 1,
+                     bgcolor=color.new(color.black, 90), border_color=color.new(#1a1a1a, 0),
+                     border_width=1, frame_color=color.new(#1a1a1a, 0), frame_width=1)
+        color _tc2 = color.new(color.white, 0)
+        color _bg2 = color.new(color.black, 85)
+        array<string> _h2 = array.from("Fecha (NY)", "Dir", "Tier", "Res", "R")
+        for c = 0 to 4
+            table.cell(_tLog, c, 0, _h2.get(c), text_color=_tc2, bgcolor=_bg2, text_size=size.tiny,
+                       text_halign=text.align_center, text_font_family=font.family_monospace)
+        for r = 0 to _rows - 1
+            int _idx = _logTime.size() - 1 - r
+            color _rc = _logRes.get(_idx) == "TP" ? color.new(#00c853, 0) : _logRes.get(_idx) == "SL" ? color.new(#ff5252, 0) : _tc2
+            table.cell(_tLog, 0, r + 1, _logTime.get(_idx), text_color=_tc2, bgcolor=_bg2, text_size=size.tiny, text_font_family=font.family_monospace)
+            table.cell(_tLog, 1, r + 1, _logDir.get(_idx),  text_color=_tc2, bgcolor=_bg2, text_size=size.tiny, text_font_family=font.family_monospace)
+            table.cell(_tLog, 2, r + 1, _logTier.get(_idx), text_color=_tc2, bgcolor=_bg2, text_size=size.tiny, text_font_family=font.family_monospace)
+            table.cell(_tLog, 3, r + 1, _logRes.get(_idx),  text_color=_rc,  bgcolor=_bg2, text_size=size.tiny, text_font_family=font.family_monospace)
+            table.cell(_tLog, 4, r + 1, _logR.get(_idx),    text_color=_rc,  bgcolor=_bg2, text_size=size.tiny, text_font_family=font.family_monospace)
