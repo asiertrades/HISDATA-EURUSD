@@ -10,6 +10,9 @@ Archivos:
 |---|---|
 | `CISD_ForeverModel.pine` | Indicador fusionado (Pine v6) para TradingView |
 | `cisd_forever_backtest.py` | Backtester del mismo motor sobre `DAT_ASCII_EURUSD_M1_*.csv` |
+| `cisd_m1_sim.py` | Simulación de las operaciones a resolución de minuto |
+| `analisis_calendario.py` | Cruce con el calendario real de 2025 |
+| `calendario_trades_2025.csv` | El calendario del Excel, una fila por marca |
 
 ---
 
@@ -125,8 +128,121 @@ incorporarlo sin cambios de arquitectura.
 
 ---
 
-## 4. Siguiente paso
+## 4. Calibración con el calendario real de 2025
 
-Contrastar el calendario real de operaciones de 2025 con la salida de
-`--years 2025 --csv trades.csv` para separar lo que el motor acierta de lo que
-sobra, y ajustar filtros (SMT / FVG / horas / tier B) con esa referencia.
+El calendario del Excel trae **208 marcas** (115 ✓, 64 ✕, 29 vetadas por
+noticias/festivos). Las horas de las casillas son la **vela de entrada** en
+hora de Nueva York y el tier C son las correcciones.
+
+### 4.1 Qué reproduce el motor
+
+| | |
+|---|---|
+| Marcas del calendario | 208 (≈202 huecos únicos fecha+hora+dirección) |
+| Señales del motor en 2025 | 181 |
+| Coinciden fecha + hora + dirección | **144** |
+| Solo en el calendario | 58 |
+| Solo en el motor | 37 |
+
+El grueso encaja. Las diferencias tienen tres causas y ninguna es un fallo de
+la lógica:
+
+- **Tier A vs B baila en ~34 señales.** Son casos límite de "vela limpia": el
+  feed de TradingView y los M1 de HistData discrepan por décimas en el body
+  ratio y la señal cae de un lado o del otro. La señal existe en ambos, cambia
+  la etiqueta.
+- **Las 7 entradas de la 01:00** del calendario no las genera el motor con
+  estos datos: implicarían una señal en la vela de las 21:00 barriendo el
+  extremo contrario al que marca la dirección. Son reconstrucciones del Excel,
+  no salidas del indicador.
+- **Correcciones**: el calendario tiene 33 y el motor 14. El Excel ya avisa de
+  "12 correcciones fantasma".
+
+### 4.2 Qué es realmente una marca ✓
+
+Midiendo la excursión real minuto a minuto durante las 24 h siguientes:
+
+| | excursión favorable (mediana) | adversa (mediana) | adversa (p75) |
+|---|---|---|---|
+| ✓ ganadoras (n=89) | **41.7 p** | 20.2 p | 32.6 p |
+| ✕ perdedoras (n=48) | 14.3 p | 48.4 p | 76.7 p |
+
+Una ✓ es un movimiento de ~40 pips a favor tolerando ~20 en contra. Con un stop
+de 10 pips medido desde el cierre de la vela H4 morirían casi todas: **el valor
+está en afinar la entrada en M15**, no en entrar al cierre. Ninguna regla
+mecánica fija reproduce el 64 % del calendario; la que más se le acerca (81 % de
+coincidencia) es "+20 p antes que −40 p".
+
+### 4.3 Filtros: qué separa las ✓ de las ✕
+
+Sobre las 137 señales del motor que el calendario etiqueta (acierto base 65 %):
+
+| Filtro | señales que deja | acierto |
+|---|---|---|
+| sin filtro | 100 % | 65.0 % |
+| cuerpo del CISD >= 20 p | 65 % | 71.9 % |
+| cuerpo del CISD >= 30 p | 34 % | 78.7 % |
+| cuerpo/rango >= 0.60 | 55 % | 76.3 % |
+| mecha en contra < 0.5 × cuerpo | 72 % | 70.4 % |
+| **cuerpo >= 20 p + ratio >= 0.50 + exceso del barrido <= 8 p** | **38 %** | **80.8 %** |
+
+Por celdas: **09h en largo es la peor** (44 %, n=27) frente a 05h en corto
+(76 %); los días de **BCE** rinden 29 % (n=7, muestra corta pero coherente con
+tus vetos manuales); y a mayor profundidad del barrido sobre el extremo de las
+17:00, peor resultado (>15 p → 50 %).
+
+### 4.4 Validación fuera de muestra (2001-2024, resolución M1)
+
+Entrada a mercado en la vela de entrada, SL 20 p, TP 3R, 4078 señales:
+
+| Filtro | ops | WR | R/operación |
+|---|---|---|---|
+| sin filtro | 4078 | 32.2 % | +0.067 |
+| cuerpo >= 20 p | 2910 | 31.0 % | +0.063 |
+| ratio >= 0.50 | 3051 | 31.8 % | +0.054 |
+| **exceso del barrido <= 8 p** | 2449 | 33.6 % | **+0.103** |
+| **calibrado (20 p + 0.50 + exc 8 p)** | 1538 | 32.3 % | **+0.094** |
+| estricto (25 p + 0.60 + mecha + exc 15 p) | 1286 | 31.4 % | +0.062 |
+
+Conclusión honesta: **el único filtro que mejora la esperanza mecánica en 24
+años es el del barrido superficial**. Los umbrales de cuerpo y ratio suben el
+*acierto* (que es lo que miden tus marcas, porque entras afinado en M15) pero
+no la R por operación: seleccionan velas más grandes, que exigen stops más
+anchos. El combinado gana en ambos terrenos: 81 % de acierto en tus marcas y
++40 % de esperanza sobre la base en 24 años, a cambio de quedarse con ~38 % de
+las señales (≈66 al año en vez de 181).
+
+### 4.5 Parámetros aplicados
+
+El indicador trae el grupo **"Filtro de calidad"** activado con esos valores:
+
+| Input | Valor |
+|---|---|
+| Activar filtro de calidad | ON |
+| Cuerpo mínimo del CISD | 20 pips |
+| Cuerpo / rango mínimo | 0.50 |
+| Mecha en contra máx. | 9.99 (desactivado — sube el acierto pero baja la R) |
+| Exceso máx. del barrido | 8 pips |
+
+**Apagando el interruptor el indicador vuelve exactamente al comportamiento del
+original.** En el backtester el filtro va apagado por defecto; se activa con
+`--calidad`.
+
+Lo que **no** se ha tocado, a propósito:
+
+- **Vetar los largos de las 09:00** y **operar solo cortos**: en 2025 (año de
+  tendencia alcista clara) los cortos aciertan 74 % y los largos 54 %, pero en
+  24 años esa asimetría desaparece (R/op +0.007 para solo-cortos). Es sesgo de
+  un año, no una regla.
+- **Vetar días de BCE/CPI**: con n=7 no se sostiene un umbral, y el indicador
+  no tiene calendario macro. Sigue siendo un veto manual tuyo.
+
+---
+
+## 5. Siguiente paso
+
+- Pegar el indicador en TradingView y comprobar que con "Filtro de calidad" OFF
+  las flechas son las del original; luego activarlo y ver la tabla.
+- El filtro **SMT sigue sin validar**: hace falta GBPUSD o DXY en el repo para
+  medirlo con el calendario. Es el módulo del Forever Model con más recorrido
+  pendiente.

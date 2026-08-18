@@ -141,9 +141,16 @@ class Params:
     # ── módulos Forever Model
     fvgMode: str = "Off"          # Off | Señal dentro de FVG | FVG activo a favor
     fvgMax: int = 8
+    # ── filtro de calidad (calibrado con el calendario 2025)
+    qOn: bool = False
+    qMinBodyPips: float = 20.0    # cuerpo mínimo de la vela CISD
+    qMinBodyRatio: float = 0.50   # cuerpo / rango de la vela
+    qMaxWick: float = 9.99        # mecha en contra / cuerpo (9.99 = desactivado)
+    qMaxSweepExc: float = 8.0     # pips que el barrido excede el extremo de las 17:00
     # ── gestión
     entryMode: str = "open"       # open | zone
-    slMode: str = "map"           # map | extremo | ob
+    slMode: str = "map"           # map | extremo | ob | pips
+    slPips: float = 10.0          # solo para slMode="pips"
     tpMode: str = "R"             # R | erl_sesion | erl_fvg
     rTarget: float = 2.0
     maxBars: int = 6
@@ -172,6 +179,11 @@ class Signal:
     sl: float = 0.0
     tp: float = 0.0
     fvg_ok: bool = True
+    quality_ok: bool = True
+    q_body: float = 0.0
+    q_ratio: float = 0.0
+    q_wick: float = 0.0
+    q_exc: float = 0.0
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -218,6 +230,7 @@ def run_engine(bars: list[Bar], p: Params) -> list[Signal]:
         daily_close_at[idx] = di
 
     refH = refL = None
+    sesHi = sesLo = None          # extremos de la sesión (para el exceso del barrido)
     lBullO = lBullL = lBearO = lBearH = None
     aBullO = aBearO = None
     sessHi = sessLo = None
@@ -252,12 +265,16 @@ def run_engine(bars: list[Bar], p: Params) -> list[Signal]:
             prevNet = None if sess17Open is None else bars[i - 1].c - sess17Open
             sess17Open = b.o
             refH, refL = b.h, b.l
+            sesHi, sesLo = b.h, b.l
             sweptH = sweptL = False
             fABear = fABull = fBBear = fBBull = False
             doubtBear = doubtBull = False
             dBearOBo = dBullOBo = None
             lBullO = lBullL = lBearO = lBearH = None
             aBullO = aBearO = None
+
+        if sesHi is not None and not is17:
+            sesHi, sesLo = max(sesHi, b.h), min(sesLo, b.l)
 
         doneA = (fABear and fABull) if p.perDir else (fABear or fABull)
 
@@ -406,10 +423,19 @@ def run_engine(bars: list[Bar], p: Params) -> list[Signal]:
                     continue
                 ob = obBull if direction == "long" else obBear
                 fvg_ok = _fvg_filter(fvgs, direction == "long", b, p)
+                is_long = direction == "long"
+                q_body = body / PIP
+                q_ratio = bodyR
+                q_wick = (upWick if is_long else dnWick) / max(body, 1e-9)
+                q_exc = ((refL - sesLo) if is_long else (sesHi - refH)) / PIP if refH is not None else 0.0
+                quality_ok = (not p.qOn) or (
+                    q_body >= p.qMinBodyPips and q_ratio >= p.qMinBodyRatio
+                    and q_wick <= p.qMaxWick and q_exc <= p.qMaxSweepExc)
                 signals.append(Signal(
                     sig_time=b.t, entry_time=nxt.t, direction=direction, tier=tier,
                     sig_close=b.c, body=body, atr6=atr6, ob=ob, hi=b.h, lo=b.l,
-                    fvg_ok=fvg_ok,
+                    fvg_ok=fvg_ok, quality_ok=quality_ok,
+                    q_body=q_body, q_ratio=q_ratio, q_wick=q_wick, q_exc=q_exc,
                 ))
 
         prev_bearSig, prev_bullSig = bearSig, bullSig
@@ -453,7 +479,7 @@ def simulate(bars: list[Bar], signals: list[Signal], p: Params) -> list[Signal]:
             s.result = "excluida"
             out.append(s)
             continue
-        if not s.fvg_ok:
+        if not s.fvg_ok or not s.quality_ok:
             s.result = "filtrada"
             out.append(s)
             continue
@@ -473,6 +499,8 @@ def simulate(bars: list[Bar], signals: list[Signal], p: Params) -> list[Signal]:
 
         if p.slMode == "map":
             sl = s.sig_close - fi * bd if long else s.sig_close + fi * bd
+        elif p.slMode == "pips":
+            sl = s.sig_close - p.slPips * PIP if long else s.sig_close + p.slPips * PIP
         elif p.slMode == "extremo":
             sl = s.lo if long else s.hi
         else:
@@ -564,7 +592,8 @@ def main() -> None:
     ap.add_argument("--fvg", default="Off",
                     choices=["Off", "Señal dentro de FVG", "FVG activo a favor"])
     ap.add_argument("--entry", default="open", choices=["open", "zone"])
-    ap.add_argument("--sl", default="map", choices=["map", "extremo", "ob"])
+    ap.add_argument("--sl", default="map", choices=["map", "extremo", "ob", "pips"])
+    ap.add_argument("--sl-pips", type=float, default=10.0)
     ap.add_argument("--tp", default="R", choices=["R", "erl_sesion"])
     ap.add_argument("--r", type=float, default=2.0)
     ap.add_argument("--max-bars", type=int, default=6)
@@ -574,6 +603,12 @@ def main() -> None:
     ap.add_argument("--single-trade", action="store_true",
                     help="una operación a la vez (por defecto se evalúa cada señal por separado)")
     ap.add_argument("--tiers", default="A,B,Corr")
+    ap.add_argument("--calidad", action="store_true",
+                    help="activa el filtro de calidad calibrado con el calendario 2025")
+    ap.add_argument("--q-body", type=float, default=20.0)
+    ap.add_argument("--q-ratio", type=float, default=0.50)
+    ap.add_argument("--q-wick", type=float, default=9.99)
+    ap.add_argument("--q-exc", type=float, default=8.0)
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
 
@@ -582,11 +617,13 @@ def main() -> None:
     load_years = sorted(set(years) | {min(years) - 1})
     bars = load_h4_cached(load_years, args.data_dir)
 
-    p = Params(fvgMode=args.fvg, entryMode=args.entry, slMode=args.sl, tpMode=args.tp,
+    p = Params(fvgMode=args.fvg, entryMode=args.entry, slMode=args.sl, slPips=args.sl_pips, tpMode=args.tp,
                rTarget=args.r, maxBars=args.max_bars, hour9=args.hour9,
                simCorr=not args.no_corr, tierB=not args.no_tierb,
                singleTrade=args.single_trade,
-               tiers=tuple(t.strip() for t in args.tiers.split(",")))
+               tiers=tuple(t.strip() for t in args.tiers.split(",")),
+               qOn=args.calidad, qMinBodyPips=args.q_body, qMinBodyRatio=args.q_ratio,
+               qMaxWick=args.q_wick, qMaxSweepExc=args.q_exc)
 
     sigs = run_engine(bars, p)
     sigs = simulate(bars, sigs, p)
