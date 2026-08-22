@@ -12,6 +12,7 @@ Archivos:
 | `cisd_forever_backtest.py` | Backtester del mismo motor sobre `DAT_ASCII_EURUSD_M1_*.csv` |
 | `cisd_m1_sim.py` | Simulación de las operaciones a resolución de minuto |
 | `analisis_calendario.py` | Cruce con el calendario real de 2025 |
+| `analisis_sobre_marcas.py` | Qué entrada funciona **dentro de las señales que el calendario marca ✓** |
 | `forever_model_engine.py` | Las entradas *propias* del Forever Model, portadas a Python |
 | `correlacion_cisd_forever.py` | Cruce entre las entradas de los dos motores |
 | `unicorn_engine.py` | Motor del Unicorn Model (M5 / M15) portado a Python |
@@ -517,6 +518,52 @@ llenado M15 cae a las 05h, el 82.6 % son ✓ (n=23); a las 06h el 72.7 %, a las
 señal que confirma la vela de la 01:00. Vigilar solo la última hora de esa vela
 —de 04:00 a 05:00 NY— es exactamente donde el apartado 7 sitúa el adelanto
 fiable: 45 minutos de margen con un 87 % de aciertos.
+
+### 6bis.5 Visto desde tus aciertos de 2025
+
+Todo lo anterior mide el sistema completo. Esta otra mirada parte de las 138
+señales que el calendario etiqueta (90 ✓ y 48 ✕) y pregunta cuál es la mejor
+forma de entrar **en ellas**.
+
+| Método de entrada | en tus ✓ (90) | | en tus ✕ (48) | |
+|---|---|---|---|---|
+| | entra | R/op | entra | R/op |
+| **OB open · TP 3R** | 86 | **+0.726** | 48 | −0.814 |
+| OB open · TP 2R | 86 | +0.434 | 48 | −0.469 |
+| OB mitad · TP 3R | 49 | +0.080 | 35 | −0.277 |
+| mercado · SL extremo CISD · TP 2R | 90 | +0.385 | 48 | −0.910 |
+| mercado · SL 20 pips · TP 3R | 90 | +0.203 | 48 | −0.845 |
+
+Cuatro cosas quedan claras:
+
+1. **La entrada correcta sobre un acierto es el OB open con objetivo 3R**: saca
+   +0.726 R por operación, casi el doble que entrar a mercado con el stop en el
+   extremo de la vela CISD (+0.385). El motivo es el tamaño del stop: 8 pips
+   contra 30-40.
+2. **Captura 86 de los 90 ✓.** Solo cuatro aciertos se quedan sin entrada.
+3. **Entrar en la mitad del OB pierde la mitad de tus aciertos**: solo 49 de 90
+   llegan a llenarse. Queda descartada.
+4. **El order block no discrimina**: entra en el 100 % de tus ✕ y ahí pierde
+   −0.814 por operación. Separar buenas de malas sigue siendo trabajo del CISD.
+
+Y el dato que cierra el círculo: entrar a mercado con el stop en el extremo de
+la vela CISD acierta el **65.6 %** de tus ✓ — prácticamente tu 64 % real. Es la
+confirmación de que la operativa actual equivale a eso, y de que el order block
+es la mejora sobre ella, no un sistema distinto.
+
+Aplicando los filtros sobre esas mismas 138 marcas, con entrada OB open y 3R:
+
+| Filtro | señales | ✓ | ✕ | % ✓ | R total | R/op |
+|---|---|---|---|---|---|---|
+| todas | 138 | 90 | 48 | 65 % | +23.4 | +0.175 |
+| + calidad CISD | 52 | 42 | 10 | **81 %** | +14.6 | +0.298 |
+| + franja horaria | 138 | 90 | 48 | 65 % | +20.2 | +0.210 |
+| + calidad y franja | 52 | 42 | 10 | 81 % | +15.8 | **+0.451** |
+
+El filtro de calidad es lo único que mueve la proporción de aciertos (del 65 %
+al 81 %); el horario y el order block no discriminan, multiplican. Operar las
+138 deja más dinero total (+23.4 R), operar las 52 filtradas deja mucho más por
+operación (+0.451). Es la elección de siempre entre volumen y eficiencia.
 
 ## 7. Anticipar la señal dentro de la vela: cuánto cuesta en ruido
 
