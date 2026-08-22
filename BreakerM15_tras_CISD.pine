@@ -87,7 +87,7 @@ if nuevaH4 and not na(h4c)
     senalBear := false
     senalBull := false
 
-    int   hNY   = hour(h4t, "America/New_York")
+    int   hNY   = hour(int(h4t), "America/New_York")
     bool  is17  = hNY == 17
     float rng   = math.max(h4h - h4l, syminfo.mintick)
     float body  = math.abs(h4c - h4o)
@@ -183,7 +183,7 @@ if nuevaH4 and not na(h4c)
                 doubtBull := true
 
     // tier B
-    bool esVie = dayofweek(h4t + 4 * 60 * 60 * 1000, "America/New_York") == dayofweek.friday
+    bool esVie = dayofweek(int(h4t) + 4 * 60 * 60 * 1000, "America/New_York") == dayofweek.friday
     if i_tierB and valida and (sweptH or sweptL) and not (i_noBFri and esVie) and not (i_noB21 and hNY == 21)
         bool wOKb = not i_bWick or dnW < body
         bool wOKl = not i_bWick or upW < body
@@ -220,9 +220,21 @@ var Zona[] zonas   = array.new<Zona>()
 var Zona   candAlc = na
 var Zona   candBaj = na
 
-float cuerpo   = math.abs(close - open)
-float medCuerpo = ta.median(math.abs(close - open), 20)
-bool  significativa = na(medCuerpo) or medCuerpo <= 0 ? true : cuerpo >= i_cuerpoR * medCuerpo
+float cuerpo = math.abs(close - open)
+
+// mediana de los últimos 20 cuerpos, calculada a mano para no depender de
+// built-ins que cambian entre versiones
+var float[] cuerposRec = array.new_float()
+float medCuerpo = na
+if barstate.isconfirmed
+    cuerposRec.push(cuerpo)
+    if cuerposRec.size() > 20
+        cuerposRec.shift()
+if cuerposRec.size() >= 5
+    float[] orden = array.copy(cuerposRec)
+    array.sort(orden)
+    medCuerpo := array.get(orden, orden.size() / 2)
+bool significativa = na(medCuerpo) or medCuerpo <= 0 ? true : cuerpo >= i_cuerpoR * medCuerpo
 
 if barstate.isconfirmed
     // activación: la vela cierra a través del open del OB contrario
@@ -336,17 +348,17 @@ if barstate.isconfirmed and (senalBear or senalBull) and zonas.size() > 0
             if sig != -1
                 Zona zs = zonas.get(sig)
                 bxOrigen := box.new(zs.bar, zs.h, derecha, zs.l, bgcolor=c_otras,
-                                    border_color=color.new(#9e9e9e, 40), border_width=1)
+                                     border_color=color.new(#9e9e9e, 40), border_width=1)
             lnEntrada := line.new(brk.bar, entrada, derecha, entrada, color=c_entrada, width=2)
             lnStop    := line.new(brk.bar, sl, derecha, sl, color=c_stop, width=1, style=line.style_dashed)
             float riesgo = math.abs(entrada - sl) / PIP
             lbPlan := label.new(derecha, entrada,
-                                (largo ? "LARGO" : "CORTO") + "  entrada " + str.tostring(entrada, format.mintick) +
+                                 (largo ? "LARGO" : "CORTO") + "  entrada " + str.tostring(entrada, format.mintick) +
                                 "\nstop " + str.tostring(sl, format.mintick) + "   riesgo " + str.tostring(riesgo, "#.#") + "p",
-                                style = largo ? label.style_label_left : label.style_label_left,
-                                color = color.new(color.white, 100),
-                                textcolor = chart.fg_color, size = size.small,
-                                text_font_family = font.family_monospace)
+                                 style = largo ? label.style_label_left : label.style_label_left,
+                                 color = color.new(color.white, 100),
+                                 textcolor = chart.fg_color, size = size.small,
+                                 text_font_family = font.family_monospace)
             nivelEntrada := entrada
             nivelStop    := sl
             planLargo    := largo
@@ -364,17 +376,21 @@ if i_verTodas and barstate.islast and zonas.size() > 0
     for i = 0 to zonas.size() - 1
         Zona z = zonas.get(i)
         box.new(z.bar, z.h, bar_index + 2, z.l, bgcolor=c_otras,
-                border_color=color.new(#9e9e9e, 60), border_width=1)
+                 border_color=color.new(#9e9e9e, 60), border_width=1)
 
-plotshape(senalBear, title="Señal CISD bajista", style=shape.triangledown,
+// la señal vive todo el periodo H4: se marca solo en la vela M15 del cierre
+bool marcaBear = senalBear and nuevaH4
+bool marcaBull = senalBull and nuevaH4
+plotshape(marcaBear, title="Señal CISD bajista", style=shape.triangledown,
           location=location.abovebar, color=color.new(#ff5252, 0), size=size.small)
-plotshape(senalBull, title="Señal CISD alcista", style=shape.triangleup,
+plotshape(marcaBull, title="Señal CISD alcista", style=shape.triangleup,
           location=location.belowbar, color=color.new(#26a69a, 0), size=size.small)
 
 // toque del nivel de entrada
 bool tocado = planVivo and not na(nivelEntrada) and (planLargo ? low <= nivelEntrada : high >= nivelEntrada)
-plotshape(tocado and barstate.isconfirmed, title="Toque de la entrada", style=shape.circle,
-          location=location.absolute, color=color.new(#000000, 0), size=size.tiny)
+plotshape(tocado, title="Toque de la entrada", style=shape.circle,
+          location = planLargo ? location.belowbar : location.abovebar,
+          color=color.new(#000000, 0), size=size.tiny)
 
-alertcondition(senalBear or senalBull, "Señal CISD H4", "Señal CISD en H4 — breaker marcado en M15")
+alertcondition(marcaBear or marcaBull, "Señal CISD H4", "Señal CISD en H4 — breaker marcado en M15")
 alertcondition(tocado, "Toque del breaker", "El precio ha tocado el nivel de entrada del breaker")
