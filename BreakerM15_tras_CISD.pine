@@ -267,8 +267,15 @@ if barstate.isconfirmed
             candBaj := nueva
 
     // limpieza por antigüedad
-    while zonas.size() > 0 and (time - zonas.get(0).t) > i_frescuraH * 60 * 60 * 1000
-        zonas.shift()
+    // ojo: `and` no hace cortocircuito en Pine, asi que la comprobacion de
+    // tamaño y el acceso al elemento no pueden ir en la misma condicion
+    bool purgar = true
+    while purgar
+        purgar := false
+        if zonas.size() > 0
+            if (time - zonas.get(0).t) > i_frescuraH * 60 * 60 * 1000
+                zonas.shift()
+                purgar := true
     while zonas.size() > 40
         zonas.shift()
 
