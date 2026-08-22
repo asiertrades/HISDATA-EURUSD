@@ -293,8 +293,11 @@ if barstate.isconfirmed and (senalBear or senalBull) and zonas.size() > 0
     float mejorNivel = na
     for i = 0 to zonas.size() - 1
         Zona z = zonas.get(i)
-        bool ok = largo ? (z.pol == 1 and z.h <= close and (close - z.h) <= i_maxDistP * PIP)
-                        : (z.pol == -1 and z.l >= close and (z.l - close) <= i_maxDistP * PIP)
+        bool ok = false
+        if largo
+            ok := z.pol == 1 and z.h <= close and (close - z.h) <= i_maxDistP * PIP
+        else
+            ok := z.pol == -1 and z.l >= close and (z.l - close) <= i_maxDistP * PIP
         if ok
             float niv = largo ? z.h : z.l
             if mejor == -1 or (largo ? niv > mejorNivel : niv < mejorNivel)
@@ -356,7 +359,7 @@ if barstate.isconfirmed and (senalBear or senalBull) and zonas.size() > 0
             float riesgo = math.abs(entrada - sl) / PIP
             lbPlan := label.new(derecha, entrada,
                                  (largo ? "LARGO" : "CORTO") + "  entrada " + str.tostring(entrada, format.mintick) +
-                                "\nstop " + str.tostring(sl, format.mintick) + "   riesgo " + str.tostring(riesgo, "#.#") + "p",
+                                 "\nstop " + str.tostring(sl, format.mintick) + "   riesgo " + str.tostring(riesgo, "#.#") + "p",
                                  style = label.style_label_left,
                                  color = color.new(color.white, 100),
                                  textcolor = chart.fg_color, size = size.small,
