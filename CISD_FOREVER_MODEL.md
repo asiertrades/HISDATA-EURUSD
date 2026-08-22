@@ -17,6 +17,7 @@ Archivos:
 | `unicorn_engine.py` | Motor del Unicorn Model (M5 / M15) portado a Python |
 | `ltf_bars.py` | Velas M5 / M15 con caché, a partir de los M1 |
 | `combo_cisd_unicorn.py` | **CISD H4 para la dirección + Unicorn M15 para la entrada** |
+| `anticipacion.py` | ¿Se puede adelantar la señal dentro de la vela, y con cuánto ruido? |
 | `calendario_trades_2025.csv` | El calendario del Excel, una fila por marca |
 
 ---
@@ -435,7 +436,44 @@ objetivo 1.5R, y descartar el setup si la zona da menos de 4 pips de riesgo.
 
 ---
 
-## 7. Siguiente paso
+## 7. Anticipar la señal dentro de la vela: cuánto cuesta en ruido
+
+`anticipacion.py` evalúa la señal CISD como si la vela H4 cerrase en cada una de
+sus 16 velas M15 ("señal provisional") y la contrasta con lo que ocurre de
+verdad al cierre. Tres resultados posibles por vela y dirección:
+
+- **anticipada y confirmada** → adelanto limpio
+- **anticipada y no confirmada** → ruido: una señal falsa que hoy no existe
+- **confirmada sin anticipar** → no se podía adelantar
+
+Adelantarse a lo bruto no sale gratis: en 2025 caza el 92 % de las señales pero
+mete 157 falsas, una por cada buena. Con tres palancas —exigir setup Unicorn
+M15, esperar a la última hora de la vela, y exigir que la vela provisional ya
+cumpla el filtro de calidad— la cosa cambia (2015-2025, 1794 señales reales):
+
+| Variante | anticipadas | cobertura | ruido | fiabilidad | adelanto |
+|---|---|---|---|---|---|
+| sin filtros | 1779 | 99 % | 1758 | 50.3 % | 135 min |
+| última hora | 1756 | 98 % | 675 | 72.2 % | 45 min |
+| última hora + calidad | 1122 | 63 % | 192 | 85.4 % | 45 min |
+| **última hora + calidad + Unicorn** | **942** | **53 %** | **141** | **87.0 %** | 45 min |
+
+La última fila son **13 señales falsas al año** a cambio de adelantar algo más
+de la mitad de las señales unos 45 minutos. En 2025 aislado: 78 anticipadas y
+12 falsas.
+
+El precio del adelanto es la cobertura: cuanto más tarde se dispara y más
+exigente es el filtro, menos ruido y menos señales se cazan. Lo que **no** se
+puede es adelantarse mucho (135 min) y no ensuciar: a mitad de vela la
+información todavía no está.
+
+Pendiente de medir: qué resultado dan esas operaciones falsas. 13 al año pueden
+ser inofensivas o pueden comerse la ventaja del adelanto; hasta simularlas con
+la misma regla de entrada, el balance neto de anticipar no está cerrado.
+
+---
+
+## 8. Siguiente paso
 
 - Pegar el indicador en TradingView y comprobar que con "Filtro de calidad" OFF
   las flechas son las del original; luego activarlo y ver la tabla.
@@ -444,8 +482,5 @@ objetivo 1.5R, y descartar el setup si la zona da menos de 4 pips de riesgo.
 - Si la combinación con el Unicorn convence, el paso natural es llevar la regla
   de entrada (BB 50 % + stop al extremo + 4 pips mínimos) al propio indicador
   fusionado, para no depender de dos scripts en dos gráficos.
-- Medir el "CISD provisional": como el 91 % de los setups M15 se activan dentro
-  de la vela que confirma la señal, y el 45 % se llenarían antes de su cierre,
-  merece la pena cuantificar cuántas velas que parecen un CISD a mitad de camino
-  acaban cerrando sin confirmarlo. Es la única vía honesta para adelantar la
-  entrada.
+- Simular las operaciones de las señales falsas del adelanto (13 al año con la
+  variante estricta) para cerrar el balance neto de anticipar.
