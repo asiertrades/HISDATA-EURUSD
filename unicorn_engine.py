@@ -117,20 +117,27 @@ def _fvg_overlap(bars, start_i: int, end_i: int, top: float, bot: float, is_bull
 
 
 def find_setups(bars, h4_bars=None, max_bars_after_sweep: int = 25,
-                unicorn_only: bool = True, use_swings: bool = True):
-    """Recorre las velas LTF y devuelve los setups activados."""
-    idx_by_t = {b.t: i for i, b in enumerate(bars)}
+                unicorn_only: bool = True, use_swings: bool = True,
+                htf_sources=None):
+    """Recorre las velas LTF y devuelve los setups activados.
+
+    htf_sources: lista [(etiqueta, velas)] con las referencias de liquidez OHLC.
+    Por defecto se usa H4 (mapeo automático para un gráfico M15); para M5 conviene
+    pasar [("1H", h1), ("H4", h4)].
+    """
     setups: list[Setup] = []
 
-    # ── niveles de referencia H4 y diarios
-    h4_levels: list[tuple[datetime, float, float]] = []
-    if h4_bars:
-        for k in range(1, len(h4_bars)):
-            h4_levels.append((h4_bars[k].t, h4_bars[k - 1].h, h4_bars[k - 1].l))
-    h4_at = {t: (hi, lo) for t, hi, lo in h4_levels}
+    if htf_sources is None:
+        htf_sources = [("H4", h4_bars)] if h4_bars else []
+    # máximo/mínimo de la vela HTF anterior, indexado por el instante en que nace
+    htf_at: dict[datetime, list[tuple[str, float, float]]] = {}
+    for etiqueta, serie in htf_sources:
+        if not serie:
+            continue
+        for k in range(1, len(serie)):
+            htf_at.setdefault(serie[k].t, []).append((etiqueta, serie[k - 1].h, serie[k - 1].l))
 
     live: list[Level] = []
-    cur_h4 = None
     prev_day = None
     day_hi = day_lo = None
     day_key = None
@@ -142,13 +149,11 @@ def find_setups(bars, h4_bars=None, max_bars_after_sweep: int = 25,
     last_piv_hi_idx = last_piv_lo_idx = None
 
     for i, b in enumerate(bars):
-        # ── nueva vela H4: el máximo/mínimo de la anterior pasa a ser liquidez
-        if b.t in h4_at:
-            hi, lo = h4_at[b.t]
-            cur_h4 = (hi, lo)
-            live = [x for x in live if x.label != "H4"]
-            live.append(Level(hi, True, "H4", b.t))
-            live.append(Level(lo, False, "H4", b.t))
+        # ── nueva vela HTF: el máximo/mínimo de la anterior pasa a ser liquidez
+        for etiqueta, hi, lo in htf_at.get(b.t, ()):
+            live = [x for x in live if x.label != etiqueta]
+            live.append(Level(hi, True, etiqueta, b.t))
+            live.append(Level(lo, False, etiqueta, b.t))
 
         # ── nueva sesión diaria (17:00 NY)
         k_day = (b.t - timedelta(hours=17)).date()

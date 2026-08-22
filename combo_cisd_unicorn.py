@@ -62,16 +62,18 @@ def simular(m1, entry_t, entry, sl, tp, max_hours):
 
 
 def run(years, ventana_h, r_target, sl_mode, buffer_p, max_hours, unicorn_only, verbose,
-        lookback_h=4.0, entry_mode='mitad', min_risk_p=4.0, coste_p=1.0):
+        lookback_h=4.0, entry_mode='mitad', min_risk_p=4.0, coste_p=1.0, tf_min=15):
     bars_h4 = bt.load_h4_cached(sorted(set(years) | {min(years) - 1}), HERE)
     sigs = [s for s in bt.run_engine(bars_h4, bt.Params()) if s.entry_time.year in years]
 
     ops = []
     for y in years:
-        b15 = ltf_bars.load(15, [y - 1, y], HERE)
+        b15 = ltf_bars.load(tf_min, [y - 1, y], HERE)
         if not b15:
             continue
-        setups = ue.find_setups(b15, bars_h4, unicorn_only=unicorn_only)
+        # fuentes de liquidez según el timeframe: en M5 entra también la H1
+        fuentes = [("H4", bars_h4)] if tf_min >= 15 else [("1H", ltf_bars.agrupar(b15, 60)), ("H4", bars_h4)]
+        setups = ue.find_setups(b15, bars_h4, unicorn_only=unicorn_only, htf_sources=fuentes)
         by_dir = {"long": [s for s in setups if s.is_bull],
                   "short": [s for s in setups if not s.is_bull]}
         for k in by_dir:
@@ -163,6 +165,7 @@ def main() -> None:
     ap.add_argument("--buffer", type=float, default=1.0, help="pips de colchón bajo el extremo")
     ap.add_argument("--entrada", default="mitad", choices=["borde", "mitad", "lejano"],
                     help="'mitad' = línea del 50 % del breaker (la que el Unicorn ya dibuja)")
+    ap.add_argument("--tf", type=int, default=15, choices=[5, 15], help="timeframe del Unicorn")
     ap.add_argument("--riesgo-min", type=float, default=4.0, help="pips mínimos de stop")
     ap.add_argument("--coste", type=float, default=1.0, help="pips de spread+slippage por operación")
     ap.add_argument("--max-horas", type=float, default=24.0)
@@ -175,8 +178,8 @@ def main() -> None:
 
     years = bt.parse_years(a.years)
     ops = run(years, a.ventana, a.r, a.sl, a.buffer, a.max_horas, a.solo_unicorn, not a.quiet,
-              a.lookback, a.entrada, a.riesgo_min, a.coste)
-    resumen(ops, f"CISD H4 + Unicorn M15 · activación −{a.lookback} h → +{a.ventana} h · SL {a.sl} · TP {a.r}R")
+              a.lookback, a.entrada, a.riesgo_min, a.coste, a.tf)
+    resumen(ops, f"CISD H4 + Unicorn M{a.tf} · activación −{a.lookback} h → +{a.ventana} h · SL {a.sl} · TP {a.r}R")
 
     hechas = [o for o in ops if o["result"] in ("TP", "SL", "tiempo")]
     for tier in ("A", "B", "Corr"):

@@ -436,6 +436,40 @@ objetivo 1.5R, y descartar el setup si la zona da menos de 4 pips de riesgo.
 
 ---
 
+### 6.7 ¿Y buscando el Unicorn en M5 después de confirmar la señal?
+
+No funciona. El motor acepta `--tf 5` (con la H1 añadida como fuente de
+liquidez, que es el mapeo automático para un gráfico de 5 minutos) y el
+resultado, 2019-2025 sobre 1244 señales CISD, con TP 1.5R y 1 pip de coste:
+
+| Configuración | ops | fill | riesgo | WR | R/op bruto | neto |
+|---|---|---|---|---|---|---|
+| M15, setup desde la vela CISD (referencia) | 290 | 23 % | 5.9 p | 60.0 % | +0.500 | **+0.331** |
+| M15, solo tras el cierre H4 | 51 | 4 % | 5.9 p | 66.7 % | +0.667 | +0.506 |
+| **M5, solo tras el cierre H4** | 181 | 15 % | 5.5 p | 41.4 % | +0.036 | **−0.139** |
+| M5, solo tras el cierre H4, sin mínimo de riesgo | 433 | 35 % | 3.7 p | 50.6 % | +0.266 | −0.010 |
+| M5, setup desde la vela CISD | 256 | 21 % | 5.4 p | 55.5 % | +0.384 | +0.205 |
+
+Dos razones, y las dos se ven en los números:
+
+1. **El breaker de M5 es la mitad de grande**: 4.3 pips de mediana frente a 8.9
+   en M15 (percentiles M5: p25 2.8 · p50 4.3 · p75 6.7). Entrando en la mitad,
+   el riesgo queda en 2-3 pips y **un pip de spread se lleva toda la ventaja**:
+   la fila sin mínimo de riesgo pasa de +0.266 bruto a −0.010 neto.
+2. **Exigir 4 pips de stop en M5 deja fuera al 82 % de los setups**, y los que
+   sobreviven no son mejores: 41.4 % de acierto y −0.139 netos.
+
+Y hay un tercer motivo, estructural: esperar al cierre de la H4 es esperar a que
+el desplazamiento ya haya ocurrido. En M15 eso casi elimina la muestra (solo el
+4 % de las señales encuentran un setup nuevo tras el cierre, porque el 91 % nace
+dentro de la propia vela). En M5 sí aparecen setups después, pero son retrocesos
+de ruido, no estructura.
+
+Un apunte con muestra corta pero llamativo: los 51 casos en que **sí** nace un
+setup M15 después del cierre H4 rinden +0.506 netos con 66.7 % de acierto. Son 7
+al año; no da para una regla, pero apunta a que el problema no es esperar al
+cierre sino el tamaño del breaker en M5.
+
 ## 7. Anticipar la señal dentro de la vela: cuánto cuesta en ruido
 
 `anticipacion.py` evalúa la señal CISD como si la vela H4 cerrase en cada una de

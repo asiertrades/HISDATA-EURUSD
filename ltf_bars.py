@@ -68,6 +68,26 @@ def load(minutes: int, years: list[int], data_dir: str = HERE) -> list[LBar]:
     return out
 
 
+def agrupar(bars: list[LBar], minutos: int) -> list[LBar]:
+    """Reagrupa velas LTF en velas mayores (p. ej. M5 → H1)."""
+    out: list[LBar] = []
+    cur = None
+    for b in bars:
+        key = b.t.replace(minute=(b.t.minute // minutos) * minutos % 60, second=0, microsecond=0)
+        if minutos >= 60:
+            key = b.t.replace(minute=0, second=0, microsecond=0)
+            key = key.replace(hour=(b.t.hour // (minutos // 60)) * (minutos // 60))
+        if cur is None or key != cur.t:
+            if cur is not None:
+                out.append(cur)
+            cur = LBar(key, b.o, b.h, b.l, b.c)
+        else:
+            cur.h, cur.l, cur.c = max(cur.h, b.h), min(cur.l, b.l), b.c
+    if cur is not None:
+        out.append(cur)
+    return out
+
+
 if __name__ == "__main__":
     import sys
     mins = int(sys.argv[1]) if len(sys.argv) > 1 else 15
