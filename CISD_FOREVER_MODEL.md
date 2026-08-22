@@ -461,6 +461,63 @@ de 8 pips en vez de 35.
 - **Ojo con la racha**: 34 % de acierto son 164 operaciones al año con series
   largas de pérdidas. La ventaja está en la geometría, no en la sensación.
 
+### 6bis.4 Filtro horario: la franja de 05:00 a 07:00 NY
+
+Repartiendo las 3438 operaciones por la hora de Nueva York en que se llena la
+orden en M15:
+
+| Hora del llenado | ops | WR | R/op neto |
+|---|---|---|---|
+| **05h** | 728 | **41.1 %** | **+0.495** |
+| 07h | 269 | 34.2 % | +0.227 |
+| 10h | 494 | 34.6 % | +0.210 |
+| 09h | 659 | 32.9 % | +0.173 |
+| 06h | 388 | 32.7 % | +0.158 |
+| 08h | 350 | 29.7 % | +0.046 |
+| 11h | 260 | 28.8 % | −0.041 |
+| 12-13h | 228 | ~31 % | ~+0.02 |
+
+Y por posición dentro de la vela de entrada, el efecto es monótono: primera hora
++0.323, segunda +0.177, tercera +0.087, cuarta +0.023. **Cuanto antes se llena
+la orden tras el cierre H4, mejor.**
+
+**Validación fuera de muestra.** Eligiendo las horas buenas solo con 2005-2014
+(salen 05, 06, 07, 09 y 10) y aplicándolas a 2015-2025: +0.268 R/op frente a
++0.203 sin filtrar. Dentro de muestra daba +0.285. El efecto se sostiene.
+
+Combinaciones, 2005-2025:
+
+| Filtro | ops | WR | R/op | R al año |
+|---|---|---|---|---|
+| sin filtros | 3438 | 34.1 % | +0.202 | +33.1 |
+| **horas 05-07 y 09-10** | 2538 | 35.7 % | +0.276 | **+33.4** |
+| horas + primeras 2 h de vela | 2269 | 35.9 % | +0.282 | +30.5 |
+| franja 05-07 + primeras 2 h | 1116 | 38.2 % | +0.378 | +20.1 |
+| **solo 05h** | 728 | **41.1 %** | **+0.495** | +17.2 |
+| horas + calidad CISD | 982 | 35.4 % | +0.279 | +13.1 |
+
+Dos lecturas:
+
+- **Filtrar por horas sale gratis**: mismo dinero al año (+33.4 contra +33.1)
+  con un 26 % menos de operaciones y mejor acierto. Menos exposición por el
+  mismo resultado.
+- **Concentrarse en las 05h** dobla largamente la calidad por operación (41 % de
+  acierto, +0.495) pero deja la mitad del beneficio anual sobre la mesa. Es la
+  elección entre eficiencia y volumen.
+- **El filtro de calidad del CISD se vuelve redundante** una vez filtras por
+  hora: no mejora la R por operación (+0.279 contra +0.276) y recorta el total.
+  Ambos filtros capturan lo mismo.
+
+El calendario real de 2025 apunta en la misma dirección: de las marcas cuyo
+llenado M15 cae a las 05h, el 82.6 % son ✓ (n=23); a las 06h el 72.7 %, a las
+07h el 75 % — frente al 45 % de las 08h y el 51.9 % de las 10h.
+
+**Y para anticiparse**, que era el motivo de la pregunta: la franja buena
+(05:00-07:00 NY) corresponde a la vela de entrada de las 05:00, es decir, a la
+señal que confirma la vela de la 01:00. Vigilar solo la última hora de esa vela
+—de 04:00 a 05:00 NY— es exactamente donde el apartado 7 sitúa el adelanto
+fiable: 45 minutos de margen con un 87 % de aciertos.
+
 ## 7. Anticipar la señal dentro de la vela: cuánto cuesta en ruido
 
 `anticipacion.py` evalúa la señal CISD como si la vela H4 cerrase en cada una de
