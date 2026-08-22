@@ -14,6 +14,9 @@ Archivos:
 | `analisis_calendario.py` | Cruce con el calendario real de 2025 |
 | `forever_model_engine.py` | Las entradas *propias* del Forever Model, portadas a Python |
 | `correlacion_cisd_forever.py` | Cruce entre las entradas de los dos motores |
+| `unicorn_engine.py` | Motor del Unicorn Model (M5 / M15) portado a Python |
+| `ltf_bars.py` | Velas M5 / M15 con caché, a partir de los M1 |
+| `combo_cisd_unicorn.py` | **CISD H4 para la dirección + Unicorn M15 para la entrada** |
 | `calendario_trades_2025.csv` | El calendario del Excel, una fila por marca |
 
 ---
@@ -301,9 +304,110 @@ Medirlo de verdad exige meter GBPUSD o DXY en el repo.
 
 ---
 
-## 6. Siguiente paso
+## 6. CISD H4 + Unicorn M15: la entrada afinada
+
+Este es el cruce que sí funciona, y no por casualidad: reproduce mecánicamente lo
+que el calendario demuestra que ya se hace a mano.
+
+    El CISD H4 dice QUÉ y CUÁNDO  →  dirección y vela de entrada (05:00 / 09:00 NY)
+    El Unicorn M15 dice DÓNDE     →  retesteo del breaker, con el stop en su extremo
+
+`unicorn_engine.py` porta el modelo (barrido de liquidez → breaker → activación
+por cierre a través de la zona → FVG solapado = "unicorn") sobre velas M15
+construidas desde los M1. Fuentes de liquidez: máximo/mínimo de la H4 previa y
+del día previo, extremos de sesión (Asia, Londres, NY AM, NY PM) y pivotes swing
+del propio M15. El barrido y el desplazamiento M15 ocurren dentro de la propia
+vela CISD; el retesteo, en la vela de entrada.
+
+**La altura mediana del breaker M15 es de 8.9 pips** — exactamente el riesgo de
+~10 pips que aparece en la hoja de estadísticas del calendario.
+
+### 6.1 Dónde se pone la orden: la línea del 50 %
+
+El detalle que decide todo. Entrando en el **borde** de la zona (que es lo que
+el Pine del Unicorn toma como `entryPrice`) con el stop en el extremo opuesto,
+cualquier retesteo completo del breaker salta el stop. Entrando en la **mitad**
+—la línea "BB 50 %" que el propio indicador ya dibuja— el riesgo se parte por la
+mitad y el resultado cambia de signo:
+
+| Entrada | ops (2015-25) | riesgo | WR | R/op neto |
+|---|---|---|---|---|
+| borde de la zona | 988 | 9.0 p | 51.0 % | +0.141 |
+| **mitad del breaker (BB 50 %)** | **750** | **4.7 p** | **64.7 %** | **+0.392** |
+
+### 6.2 Resultados, 2005-2025
+
+Entrada en la mitad del breaker, SL al extremo opuesto +1 pip, TP 1.5R, coste de
+1 pip por operación, simulación minuto a minuto:
+
+| | |
+|---|---|
+| Operaciones | 1397 (39 % de las señales CISD reciben entrada) |
+| Riesgo mediano | 5.5 pips |
+| Acierto | 67.8 % |
+| R/operación | +0.695 bruto · **+0.494 neto** |
+| Años en positivo | **21 de 21** (WR entre 56.6 % y 81.0 %) |
+
+Con el filtro de calidad del CISD activado encima: 373 operaciones, 74.5 % de
+acierto, +0.670 R netos por operación.
+
+### 6.3 ¿Aporta algo el CISD, o basta el Unicorn?
+
+Aporta, y mucho (2015-2025, mismas reglas de entrada):
+
+| | ops | WR | R/op neto |
+|---|---|---|---|
+| Unicorn M15 solo, a cualquier hora | 7326 | 60.7 % | +0.276 |
+| **con señal CISD en la misma dirección y ventana** | 1255 | 68.3 % | **+0.479** |
+| sin CISD alrededor | 6071 | 59.2 % | +0.234 |
+
+El CISD casi dobla la esperanza por operación y sube el acierto 9 puntos, a
+cambio de quedarse con el 17 % de los setups. Y al revés: el Unicorn es lo que
+convierte la señal del CISD en algo operable con 5 pips de riesgo en vez de 35.
+
+### 6.4 La fragilidad: el coste
+
+Un stop de 5 pips es fino. Un pip de spread se come el 20 % del riesgo, así que
+conviene ver hasta dónde aguanta (R/op neto, 2015-2025):
+
+| Riesgo mínimo exigido | ops | coste 0 | 1 p | 2 p | 3 p |
+|---|---|---|---|---|---|
+| sin mínimo | 750 | +0.618 | +0.392 | +0.167 | −0.058 |
+| **>= 4 pips** | 476 | +0.520 | +0.355 | +0.191 | +0.027 |
+| >= 6 pips | 238 | +0.418 | +0.296 | +0.174 | +0.052 |
+| >= 8 pips | 117 | +0.389 | +0.291 | +0.194 | +0.096 |
+
+Sin mínimo, el sistema muere con 3 pips de coste. **Exigiendo 4 pips de stop
+mínimo aguanta cualquier coste realista**, y por eso es el valor por defecto.
+Recordatorio: los M1 de HistData son precios bid y la simulación no modela el
+spread en el llenado — el coste se resta después, como aproximación.
+
+### 6.5 Cómo usarlo
+
+```bash
+python3 combo_cisd_unicorn.py --years 2025
+python3 combo_cisd_unicorn.py --years 2015-2025 --r 2 --riesgo-min 5 --coste 1.5
+```
+
+Defaults ya calibrados: entrada en la mitad del breaker, SL en el extremo +1 pip,
+TP 1.5R, riesgo mínimo 4 pips, ventana de 4 h, coste 1 pip. `--solo-unicorn`
+exige el solape con FVG: reduce la muestra a la mitad sin mejorar la esperanza,
+así que por defecto valen también los breakers sin FVG.
+
+En el gráfico, traducido a operativa: gráfico M15 con el Unicorn puesto,
+esperando un setup en la dirección que marque el CISD H4 durante la vela de las
+05:00 o las 09:00; orden límite en la línea **BB 50 %** del breaker (actívala en
+"Show Bull/Bear BB 50 %"), stop al extremo opuesto de la zona más un pip,
+objetivo 1.5R, y descartar el setup si la zona da menos de 4 pips de riesgo.
+
+---
+
+## 7. Siguiente paso
 
 - Pegar el indicador en TradingView y comprobar que con "Filtro de calidad" OFF
   las flechas son las del original; luego activarlo y ver la tabla.
-- Añadir los M1 de GBPUSD (o DXY) al repo: desbloquea a la vez el filtro SMT del
+- Añadir los M1 de GBPUSD (o DXY) al repo: desbloquea el filtro SMT del
   indicador y la evaluación honesta del Forever Model como sistema propio.
+- Si la combinación con el Unicorn convence, el paso natural es llevar la regla
+  de entrada (BB 50 % + stop al extremo + 4 pips mínimos) al propio indicador
+  fusionado, para no depender de dos scripts en dos gráficos.

@@ -1,3 +1,6 @@
 h4_eurusd_cache.csv
+m5_eurusd_cache.csv
+m15_eurusd_cache.csv
 trades*.csv
+ops*.csv
 __pycache__/
