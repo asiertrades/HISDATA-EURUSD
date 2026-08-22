@@ -42,7 +42,13 @@ def nivel_entrada(s, modo):
 
 
 def simular(m1, entry_t, entry, sl, tp, max_hours):
-    """Camina los M1 desde entry_t: devuelve (resultado, R, salida)."""
+    """Camina los M1 desde entry_t.
+
+    `entry` es una orden LÍMITE: primero hay que encontrar el minuto en que el
+    precio la toca y solo desde ahí se vigilan stop y objetivo. Empezar a
+    vigilarlos desde el principio de la vela apuntaría salidas que ocurrieron
+    antes de estar dentro.
+    """
     ts, mo, mh, ml, mc = m1
     i = bisect.bisect_left(ts, entry_t)
     end = bisect.bisect_left(ts, entry_t + timedelta(hours=max_hours))
@@ -50,7 +56,16 @@ def simular(m1, entry_t, entry, sl, tp, max_hours):
         return "sin datos", 0.0, None
     long = tp > entry
     risk = max(abs(entry - sl), PIP * 0.5)
+
+    fill = None
     for j in range(i, end):
+        if (ml[j] <= entry) if long else (mh[j] >= entry):
+            fill = j
+            break
+    if fill is None:
+        return "sin llenar", 0.0, None
+
+    for j in range(fill, end):
         hit_sl = ml[j] <= sl if long else mh[j] >= sl
         hit_tp = mh[j] >= tp if long else ml[j] <= tp
         if hit_sl:

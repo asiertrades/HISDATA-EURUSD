@@ -305,170 +305,100 @@ Medirlo de verdad exige meter GBPUSD o DXY en el repo.
 
 ---
 
-## 6. CISD H4 + Unicorn M15: la entrada afinada
+## 6. CISD H4 + Unicorn M15: probado y descartado
 
-Este es el cruce que sí funciona, y no por casualidad: reproduce mecánicamente lo
-que el calendario demuestra que ya se hace a mano.
+> **Corrección.** Una primera versión de este apartado daba +0.494 R netos por
+> operación y 21 de 21 años en positivo. Era falso: el simulador tenía un fallo
+> que se describe en 6.4. Con él arreglado, la combinación **pierde dinero**.
+> Los números de abajo son los corregidos.
 
-    El CISD H4 dice QUÉ y CUÁNDO  →  dirección y vela de entrada (05:00 / 09:00 NY)
-    El Unicorn M15 dice DÓNDE     →  retesteo del breaker, con el stop en su extremo
+La idea: el CISD H4 da dirección y ventana horaria, y el Unicorn en M15 da la
+entrada afinada — retesteo del breaker con el stop en su extremo, 5-6 pips de
+riesgo en vez de los 35 de la invalidación H4.
 
 `unicorn_engine.py` porta el modelo (barrido de liquidez → breaker → activación
-por cierre a través de la zona → FVG solapado = "unicorn") sobre velas M15
-construidas desde los M1. Fuentes de liquidez: máximo/mínimo de la H4 previa y
-del día previo, extremos de sesión (Asia, Londres, NY AM, NY PM) y pivotes swing
-del propio M15. El barrido y el desplazamiento M15 ocurren dentro de la propia
-vela CISD; el retesteo, en la vela de entrada.
+por cierre a través de la zona → FVG solapado) sobre velas M15 construidas desde
+los M1. Fuentes de liquidez: máximo/mínimo de la H4 previa y del día previo,
+extremos de sesión (Asia, Londres, NY AM, NY PM) y pivotes swing del propio M15.
 
-**La altura mediana del breaker M15 es de 8.9 pips** — exactamente el riesgo de
-~10 pips que aparece en la hoja de estadísticas del calendario.
+Lo que sí es cierto y sigue en pie: **la altura mediana del breaker M15 es de
+8.9 pips**, el mismo riesgo que reporta la hoja de estadísticas del calendario.
+El mecanismo es el que se opera a mano. Lo que no aguanta es el resultado.
 
-### 6.1 Dónde se pone la orden: la línea del 50 %
+### 6.1 Resultado corregido, 2005-2025
 
-El detalle que decide todo. Entrando en el **borde** de la zona (que es lo que
-el Pine del Unicorn toma como `entryPrice`) con el stop en el extremo opuesto,
-cualquier retesteo completo del breaker salta el stop. Entrando en la **mitad**
-—la línea "BB 50 %" que el propio indicador ya dibuja— el riesgo se parte por la
-mitad y el resultado cambia de signo:
-
-| Entrada | ops (2015-25) | riesgo | WR | R/op neto |
-|---|---|---|---|---|
-| borde de la zona | 988 | 9.0 p | 51.0 % | +0.141 |
-| **mitad del breaker (BB 50 %)** | **750** | **4.7 p** | **64.7 %** | **+0.392** |
-
-### 6.2 Resultados, 2005-2025
-
-Entrada en la mitad del breaker, SL al extremo opuesto +1 pip, TP 1.5R, coste de
-1 pip por operación, simulación minuto a minuto:
+Entrada en la mitad del breaker, SL al extremo opuesto +1 pip, TP 1.5R, riesgo
+mínimo 4 pips, coste de 1 pip, simulación minuto a minuto:
 
 | | |
 |---|---|
-| Operaciones | 1397 (39 % de las señales CISD reciben entrada) |
+| Operaciones | 1397 |
 | Riesgo mediano | 5.5 pips |
-| Acierto | 67.8 % |
-| R/operación | +0.695 bruto · **+0.494 neto** |
-| Años en positivo | **21 de 21** (WR entre 56.6 % y 81.0 %) |
+| Acierto | 41.7 % |
+| R/operación | +0.042 bruto · **−0.159 neto** |
+| Años en positivo | **2 de 21** (2011 y 2013) |
 
-Con el filtro de calidad del CISD activado encima: 373 operaciones, 74.5 % de
-acierto, +0.670 R netos por operación.
+En bruto apenas empata; el coste de ejecución lo hunde. Con el filtro de calidad
+del CISD encima mejora algo (−0.121) pero sigue en negativo.
 
-### 6.3 ¿Aporta algo el CISD, o basta el Unicorn?
+### 6.2 El CISD sí aporta, pero sobre una base perdedora
 
-Aporta, y mucho (2015-2025, mismas reglas de entrada):
+2015-2025, mismas reglas de entrada:
 
-| | ops | WR | R/op neto |
-|---|---|---|---|
-| Unicorn M15 solo, a cualquier hora | 7326 | 60.7 % | +0.276 |
-| **con señal CISD en la misma dirección y ventana** | 1255 | 68.3 % | **+0.479** |
-| sin CISD alrededor | 6071 | 59.2 % | +0.234 |
+| | ops | WR | R/op bruto | neto |
+|---|---|---|---|---|
+| Unicorn M15 solo, a cualquier hora | 7326 | 40.1 % | +0.001 | −0.241 |
+| con señal CISD en la misma dirección y ventana | 1255 | 46.4 % | +0.160 | −0.069 |
+| sin CISD alrededor | 6071 | 38.8 % | −0.032 | −0.277 |
 
-El CISD casi dobla la esperanza por operación y sube el acierto 9 puntos, a
-cambio de quedarse con el 17 % de los setups. Y al revés: el Unicorn es lo que
-convierte la señal del CISD en algo operable con 5 pips de riesgo en vez de 35.
+El filtro del CISD vale unos +0.17 R por operación — es real y consistente. El
+problema es que el punto de partida (el Unicorn suelto con stops de 4-5 pips)
+está tan por debajo de cero que no basta.
 
-### 6.4 La fragilidad: el coste
+### 6.3 En M5 es peor
 
-Un stop de 5 pips es fino. Un pip de spread se come el 20 % del riesgo, así que
-conviene ver hasta dónde aguanta (R/op neto, 2015-2025):
+`--tf 5` añade la H1 como fuente de liquidez (el mapeo automático de un gráfico
+de 5 minutos). 2019-2025, 1244 señales CISD:
 
-| Riesgo mínimo exigido | ops | coste 0 | 1 p | 2 p | 3 p |
-|---|---|---|---|---|---|
-| sin mínimo | 750 | +0.618 | +0.392 | +0.167 | −0.058 |
-| **>= 4 pips** | 476 | +0.520 | +0.355 | +0.191 | +0.027 |
-| >= 6 pips | 238 | +0.418 | +0.296 | +0.174 | +0.052 |
-| >= 8 pips | 117 | +0.389 | +0.291 | +0.194 | +0.096 |
-
-Sin mínimo, el sistema muere con 3 pips de coste. **Exigiendo 4 pips de stop
-mínimo aguanta cualquier coste realista**, y por eso es el valor por defecto.
-Recordatorio: los M1 de HistData son precios bid y la simulación no modela el
-spread en el llenado — el coste se resta después, como aproximación.
-
-### 6.5 Cuándo se forma el setup M15: dentro de la vela que confirma el CISD
-
-De las 577 señales con setup Unicorn en la ventana (2015-2025):
-
-| Momento de la activación | n | % |
-|---|---|---|
-| **dentro de la vela H4 que confirma el CISD** | 523 | **91 %** |
-| ya en la vela de entrada | 54 | 9 % |
-
-Y dentro de esa vela se concentra al final: 173 en su última hora, 137 en la
-tercera, 127 en la segunda, 86 en la primera. Es lógico: el breaker M15 y su
-cierre de activación **son** el desplazamiento del CISD visto de cerca.
-
-En el 45 % de los casos el retesteo también ocurriría antes del cierre H4, es
-decir, la orden se habría llenado antes de que la señal exista oficialmente.
-
-Rendimiento según el momento (esperando siempre al cierre H4, que es lo operable):
-
-| | n | WR | R/op neto |
-|---|---|---|---|
-| todas | 467 | 60.2 % | +0.341 |
-| setup activado dentro de la vela CISD | 413 | 58.8 % | +0.307 |
-| setup activado ya en la vela de entrada | 54 | 70.4 % | +0.603 |
-
-**El coste de esperar al cierre**: de las 262 operaciones cuyo retesteo cae antes
-del cierre H4, entrar en el momento del toque daría 73.3 % y +0.653 R netos,
-frente a 57.9 % y +0.265 esperando. Ojo: **ese número no es alcanzable tal cual**
-— está sesgado por selección, porque solo se miran los setups que acabaron
-produciendo señal CISD al cierre de esa vela, y en tiempo real eso no se sabe.
-Para aprovecharlo haría falta definir un "CISD provisional" intravela (barrido
-hecho + precio a través del open del OB) y medir cuántas de esas velas acaban
-cerrando sin confirmar.
-
-### 6.6 Cómo usarlo
-
-```bash
-python3 combo_cisd_unicorn.py --years 2025
-python3 combo_cisd_unicorn.py --years 2015-2025 --r 2 --riesgo-min 5 --coste 1.5
-```
-
-Defaults ya calibrados: entrada en la mitad del breaker, SL en el extremo +1 pip,
-TP 1.5R, riesgo mínimo 4 pips, ventana de 4 h, coste 1 pip. `--solo-unicorn`
-exige el solape con FVG: reduce la muestra a la mitad sin mejorar la esperanza,
-así que por defecto valen también los breakers sin FVG.
-
-En el gráfico, traducido a operativa: gráfico M15 con el Unicorn puesto,
-esperando un setup en la dirección que marque el CISD H4 durante la vela de las
-05:00 o las 09:00; orden límite en la línea **BB 50 %** del breaker (actívala en
-"Show Bull/Bear BB 50 %"), stop al extremo opuesto de la zona más un pip,
-objetivo 1.5R, y descartar el setup si la zona da menos de 4 pips de riesgo.
-
----
-
-### 6.7 ¿Y buscando el Unicorn en M5 después de confirmar la señal?
-
-No funciona. El motor acepta `--tf 5` (con la H1 añadida como fuente de
-liquidez, que es el mapeo automático para un gráfico de 5 minutos) y el
-resultado, 2019-2025 sobre 1244 señales CISD, con TP 1.5R y 1 pip de coste:
-
-| Configuración | ops | fill | riesgo | WR | R/op bruto | neto |
+| Configuración | ops | fill | riesgo | WR | bruto | neto |
 |---|---|---|---|---|---|---|
-| M15, setup desde la vela CISD (referencia) | 290 | 23 % | 5.9 p | 60.0 % | +0.500 | **+0.331** |
-| M15, solo tras el cierre H4 | 51 | 4 % | 5.9 p | 66.7 % | +0.667 | +0.506 |
-| **M5, solo tras el cierre H4** | 181 | 15 % | 5.5 p | 41.4 % | +0.036 | **−0.139** |
-| M5, solo tras el cierre H4, sin mínimo de riesgo | 433 | 35 % | 3.7 p | 50.6 % | +0.266 | −0.010 |
-| M5, setup desde la vela CISD | 256 | 21 % | 5.4 p | 55.5 % | +0.384 | +0.205 |
+| M15, setup desde la vela CISD | 290 | 23 % | 5.9 p | 39.0 % | −0.026 | −0.195 |
+| M15, solo tras el cierre H4 | 51 | 4 % | 5.9 p | 45.1 % | +0.127 | −0.033 |
+| M5, solo tras el cierre H4 | 181 | 15 % | 5.5 p | 35.9 % | −0.102 | −0.277 |
+| M5, tras el cierre, sin mínimo de riesgo | 433 | 35 % | 3.7 p | 41.1 % | +0.031 | −0.244 |
+| M5, setup desde la vela CISD | 256 | 21 % | 5.4 p | 48.8 % | +0.218 | **+0.039** |
 
-Dos razones, y las dos se ven en los números:
+El breaker de M5 mide 4.3 pips de mediana (p25 2.8 · p75 6.7) frente a 8.9 en
+M15: entrando en su mitad quedan 2-3 pips de riesgo y un pip de spread se lleva
+toda la ventaja. La única casilla que sobrevive a cero es la última, y por poco.
 
-1. **El breaker de M5 es la mitad de grande**: 4.3 pips de mediana frente a 8.9
-   en M15 (percentiles M5: p25 2.8 · p50 4.3 · p75 6.7). Entrando en la mitad,
-   el riesgo queda en 2-3 pips y **un pip de spread se lleva toda la ventaja**:
-   la fila sin mínimo de riesgo pasa de +0.266 bruto a −0.010 neto.
-2. **Exigir 4 pips de stop en M5 deja fuera al 82 % de los setups**, y los que
-   sobreviven no son mejores: 41.4 % de acierto y −0.139 netos.
+### 6.4 El fallo, porque merece quedar escrito
 
-Y hay un tercer motivo, estructural: esperar al cierre de la H4 es esperar a que
-el desplazamiento ya haya ocurrido. En M15 eso casi elimina la muestra (solo el
-4 % de las señales encuentran un setup nuevo tras el cierre, porque el 91 % nace
-dentro de la propia vela). En M5 sí aparecen setups después, pero son retrocesos
-de ruido, no estructura.
+El simulador recibía la vela M15 en la que el precio tocaba el límite y empezaba
+a vigilar stop y objetivo **desde el principio de esa vela**, sin esperar al
+minuto del llenado. Con órdenes límite eso es letal: en un corto, el límite está
+por encima del precio, y dentro de esa misma vela el precio suele bajar primero
+(hacia el objetivo) y subir después (hasta el límite). El simulador apuntaba un
+objetivo alcanzado antes de estar dentro.
 
-Un apunte con muestra corta pero llamativo: los 51 casos en que **sí** nace un
-setup M15 después del cierre H4 rinden +0.506 netos con 66.7 % de acierto. Son 7
-al año; no da para una regla, pero apunta a que el problema no es esperar al
-cierre sino el tamaño del breaker en M5.
+Con objetivos de 8 pips (1.5R sobre 5 pips de riesgo) y velas M15 que se mueven
+40 pips en NFP, el fantasma aparecía constantemente. Corregido —buscar primero
+el minuto del llenado y vigilar salidas solo a partir de ahí—, 2025 pasó de
++0.169 a −0.175 y el histórico de +0.494 a −0.159.
+
+El resto del repo no está afectado: el motor CISD y su validación entran a
+mercado en la apertura de la vela, donde el problema no existe, y el análisis de
+anticipación del apartado 7 solo cuenta señales, no simula operaciones.
+
+### 6.5 Qué queda vivo de esta línea
+
+- **El diagnóstico del calendario sigue en pie**: el breaker M15 mide lo mismo
+  que el stop real, así que el mecanismo es el correcto. Lo que falla es esta
+  forma concreta de mecanizarlo.
+- **El CISD como filtro de dirección vale +0.17 R** sobre el Unicorn suelto.
+- Para que la idea funcione haría falta o bien un coste de ejecución muy por
+  debajo de 1 pip, o bien entradas con más recorrido: objetivos mayores que 1.5R
+  sobre stops de 5 pips no se sostienen contra el spread.
 
 ## 7. Anticipar la señal dentro de la vela: cuánto cuesta en ruido
 
