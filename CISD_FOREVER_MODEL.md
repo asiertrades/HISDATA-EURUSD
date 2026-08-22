@@ -382,7 +382,40 @@ mínimo aguanta cualquier coste realista**, y por eso es el valor por defecto.
 Recordatorio: los M1 de HistData son precios bid y la simulación no modela el
 spread en el llenado — el coste se resta después, como aproximación.
 
-### 6.5 Cómo usarlo
+### 6.5 Cuándo se forma el setup M15: dentro de la vela que confirma el CISD
+
+De las 577 señales con setup Unicorn en la ventana (2015-2025):
+
+| Momento de la activación | n | % |
+|---|---|---|
+| **dentro de la vela H4 que confirma el CISD** | 523 | **91 %** |
+| ya en la vela de entrada | 54 | 9 % |
+
+Y dentro de esa vela se concentra al final: 173 en su última hora, 137 en la
+tercera, 127 en la segunda, 86 en la primera. Es lógico: el breaker M15 y su
+cierre de activación **son** el desplazamiento del CISD visto de cerca.
+
+En el 45 % de los casos el retesteo también ocurriría antes del cierre H4, es
+decir, la orden se habría llenado antes de que la señal exista oficialmente.
+
+Rendimiento según el momento (esperando siempre al cierre H4, que es lo operable):
+
+| | n | WR | R/op neto |
+|---|---|---|---|
+| todas | 467 | 60.2 % | +0.341 |
+| setup activado dentro de la vela CISD | 413 | 58.8 % | +0.307 |
+| setup activado ya en la vela de entrada | 54 | 70.4 % | +0.603 |
+
+**El coste de esperar al cierre**: de las 262 operaciones cuyo retesteo cae antes
+del cierre H4, entrar en el momento del toque daría 73.3 % y +0.653 R netos,
+frente a 57.9 % y +0.265 esperando. Ojo: **ese número no es alcanzable tal cual**
+— está sesgado por selección, porque solo se miran los setups que acabaron
+produciendo señal CISD al cierre de esa vela, y en tiempo real eso no se sabe.
+Para aprovecharlo haría falta definir un "CISD provisional" intravela (barrido
+hecho + precio a través del open del OB) y medir cuántas de esas velas acaban
+cerrando sin confirmar.
+
+### 6.6 Cómo usarlo
 
 ```bash
 python3 combo_cisd_unicorn.py --years 2025
@@ -411,3 +444,8 @@ objetivo 1.5R, y descartar el setup si la zona da menos de 4 pips de riesgo.
 - Si la combinación con el Unicorn convence, el paso natural es llevar la regla
   de entrada (BB 50 % + stop al extremo + 4 pips mínimos) al propio indicador
   fusionado, para no depender de dos scripts en dos gráficos.
+- Medir el "CISD provisional": como el 91 % de los setups M15 se activan dentro
+  de la vela que confirma la señal, y el 45 % se llenarían antes de su cierre,
+  merece la pena cuantificar cuántas velas que parecen un CISD a mitad de camino
+  acaban cerrando sin confirmarlo. Es la única vía honesta para adelantar la
+  entrada.
