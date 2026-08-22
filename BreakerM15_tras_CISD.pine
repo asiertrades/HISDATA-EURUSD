@@ -238,14 +238,16 @@ bool significativa = na(medCuerpo) or medCuerpo <= 0 ? true : cuerpo >= i_cuerpo
 
 if barstate.isconfirmed
     // activación: la vela cierra a través del open del OB contrario
-    if close > open and not na(candBaj) and close > candBaj.o
-        candBaj.pol := 1
-        zonas.push(candBaj)
-        candBaj := na
-    if close < open and not na(candAlc) and close < candAlc.o
-        candAlc.pol := -1
-        zonas.push(candAlc)
-        candAlc := na
+    if close > open and not na(candBaj)
+        if close > candBaj.o
+            candBaj.pol := 1
+            zonas.push(candBaj)
+            candBaj := na
+    if close < open and not na(candAlc)
+        if close < candAlc.o
+            candAlc.pol := -1
+            zonas.push(candAlc)
+            candAlc := na
 
     // volteo de polaridad
     if zonas.size() > 0
@@ -355,7 +357,7 @@ if barstate.isconfirmed and (senalBear or senalBull) and zonas.size() > 0
             lbPlan := label.new(derecha, entrada,
                                  (largo ? "LARGO" : "CORTO") + "  entrada " + str.tostring(entrada, format.mintick) +
                                 "\nstop " + str.tostring(sl, format.mintick) + "   riesgo " + str.tostring(riesgo, "#.#") + "p",
-                                 style = largo ? label.style_label_left : label.style_label_left,
+                                 style = label.style_label_left,
                                  color = color.new(color.white, 100),
                                  textcolor = chart.fg_color, size = size.small,
                                  text_font_family = font.family_monospace)
@@ -372,7 +374,7 @@ if planVivo and not na(planT) and (time - planT) > i_ventanaH * 60 * 60 * 1000
 // ══════════════════════════════════════════════════════════════════
 // ZONAS SUELTAS (opcional) Y MARCAS
 // ══════════════════════════════════════════════════════════════════
-if i_verTodas and barstate.islast and zonas.size() > 0
+if i_verTodas and not i_soloTras and barstate.islast and zonas.size() > 0
     for i = 0 to zonas.size() - 1
         Zona z = zonas.get(i)
         box.new(z.bar, z.h, bar_index + 2, z.l, bgcolor=c_otras,
@@ -388,9 +390,10 @@ plotshape(marcaBull, title="Señal CISD alcista", style=shape.triangleup,
 
 // toque del nivel de entrada
 bool tocado = planVivo and not na(nivelEntrada) and (planLargo ? low <= nivelEntrada : high >= nivelEntrada)
-plotshape(tocado, title="Toque de la entrada", style=shape.circle,
-          location = planLargo ? location.belowbar : location.abovebar,
-          color=color.new(#000000, 0), size=size.tiny)
+plotshape(tocado and planLargo,      title="Toque de la entrada (largo)", style=shape.circle,
+          location=location.belowbar, color=color.new(#000000, 0), size=size.tiny)
+plotshape(tocado and not planLargo,  title="Toque de la entrada (corto)", style=shape.circle,
+          location=location.abovebar, color=color.new(#000000, 0), size=size.tiny)
 
 alertcondition(marcaBear or marcaBull, "Señal CISD H4", "Señal CISD en H4 — breaker marcado en M15")
 alertcondition(tocado, "Toque del breaker", "El precio ha tocado el nivel de entrada del breaker")
