@@ -16,7 +16,9 @@ Archivos:
 | `correlacion_cisd_forever.py` | Cruce entre las entradas de los dos motores |
 | `unicorn_engine.py` | Motor del Unicorn Model (M5 / M15) portado a Python |
 | `ltf_bars.py` | Velas M5 / M15 con caché, a partir de los M1 |
-| `combo_cisd_unicorn.py` | **CISD H4 para la dirección + Unicorn M15 para la entrada** |
+| `combo_cisd_unicorn.py` | CISD H4 + breaker del Unicorn en M15 (probado y descartado) |
+| `ob_entry.py` | Detector de order blocks en M15 / M5, al estilo del motor CISD |
+| `combo_cisd_ob.py` | **CISD H4 para la dirección + order block M15 para la entrada** |
 | `anticipacion.py` | ¿Se puede adelantar la señal dentro de la vela, y con cuánto ruido? |
 | `calendario_trades_2025.csv` | El calendario del Excel, una fila por marca |
 
@@ -399,6 +401,65 @@ anticipación del apartado 7 solo cuenta señales, no simula operaciones.
 - Para que la idea funcione haría falta o bien un coste de ejecución muy por
   debajo de 1 pip, o bien entradas con más recorrido: objetivos mayores que 1.5R
   sobre stops de 5 pips no se sostienen contra el spread.
+
+## 6bis. La entrada que sí funciona: order block M15 en vez de breaker
+
+El breaker del Unicorn se construye desde el último pivote swing. La alternativa
+—propuesta por Asier— es usar la lógica de order block del **propio motor CISD**,
+pero en M15: la última vela contraria cuyo open atraviesa el precio con una vela
+de desplazamiento.
+
+    long : última vela BAJISTA cuyo open cierra por encima una vela alcista
+    entrada      → orden límite en el OPEN del order block
+    invalidación → mínimo del order block menos un pip
+    objetivo     → 3R
+
+La diferencia práctica es el tamaño: el order block deja **7.9 pips de riesgo
+mediano** frente a los 5.5 del breaker partido por la mitad. Con stops tan finos
+eso lo cambia todo, porque el coste de ejecución pesa proporcionalmente menos.
+
+### 6bis.1 Resultado, 2005-2025
+
+| | |
+|---|---|
+| Operaciones | 3438 (98 % de las señales encuentran entrada) |
+| Riesgo mediano | 7.9 pips |
+| Acierto | 34.1 % (con objetivo de 3R) |
+| R/operación | +0.334 bruto · **+0.202 neto** con 1 pip de coste |
+| Años en positivo | **18 de 21** (negativos: 2005, 2019, 2021) |
+
+Sensibilidad al coste, que era lo que mataba a la versión del breaker:
+
+| coste por operación | 0.5 p | 1 p | 1.5 p | 2 p |
+|---|---|---|---|---|
+| R/op neto | +0.268 | +0.202 | +0.136 | +0.070 |
+
+Aguanta hasta 2 pips. Y con el filtro de calidad del CISD encima sube a +0.245.
+
+### 6bis.2 El CISD es lo que lo hace funcionar
+
+| | ops | WR | R/op neto |
+|---|---|---|---|
+| **order blocks con señal CISD delante** | 3438 | 34.1 % | **+0.202** |
+| order blocks sueltos, sin CISD (muestra 1/3) | 33515 | 25.8 % | −0.143 |
+
+Los order blocks de M15 por sí solos pierden dinero: hay miles al año y son
+ruido. Filtrados por dirección y ventana horaria del CISD, ganan. Aquí el reparto
+de mérito es claro: el CISD aporta la selección, el order block aporta un stop
+de 8 pips en vez de 35.
+
+### 6bis.3 Detalles que importan
+
+- **Entrar en el open del OB, no en su mitad**: la mitad da mejor precio pero
+  solo se llena el 31 % de las veces y deja 5.2 pips de riesgo; el open se llena
+  el 79-98 % con 7-8 pips. Neto: +0.182 contra +0.122.
+- **Objetivo 3R, no 1.5R**: al revés que con el breaker. Con 8 pips de riesgo,
+  3R son 24 pips, un recorrido normal en la sesión; y un acierto del 34 % con 3R
+  rinde más que el 51 % con 1.5R.
+- **Filtrar por desplazamiento no ayuda**: exigir que la vela que rompe el OB
+  tenga 5 u 8 pips de cuerpo baja el resultado (+0.085 y +0.029).
+- **Ojo con la racha**: 34 % de acierto son 164 operaciones al año con series
+  largas de pérdidas. La ventaja está en la geometría, no en la sensación.
 
 ## 7. Anticipar la señal dentro de la vela: cuánto cuesta en ruido
 
