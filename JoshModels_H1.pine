@@ -1,28 +1,33 @@
 // This source code is subject to the Mozilla Public License 2.0
 // © asiertrades
 //
-// MODELOS DE JOSH — SEÑALES EN GRAFICO H1 (sin OSOK)
+// MODELOS DE JOSH — SEÑALES EN GRAFICO H1
 // ─────────────────────────────────────────────────────────────────────────────
-// Poner en un grafico H1 de EURUSD. Replica los detectores auditados contra los
-// posts de Josh (20/24 dias de ground truth con la familia detectada):
+// Poner en un grafico H1 de EURUSD. Un solo modelo como maximo por sesion:
+//   Mañana de Londres (prioridad): LR2.1 > LR1 > Asia.1 > LR2.2
+//   Nueva York        (prioridad): NYR2 > NYC1 > NYR1
+// El primero que arma consume la sesion; el resto ya no se evalua ese dia.
+// Sin OSOK, sin NY Continuation.2 y sin News Protocol, a proposito.
+//
 //   LR21  London Reversal 2.1  raid 01:00 + confirmacion 02:00 -> entrada 03:00
 //   LR1   London Reversal.1    raid 02:00/03:00 confirmado     -> entrada 03/04
-//         (excepcion: raid 03:00 sin confirmar -> entrada 1er M15 de 04:00)
-//   ASIA1 Asia Model.1         barrido Asia 00-02 + conf 02:00 -> entrada 03:00
+//         (excepcion LR1*: raid 03:00 sin confirmar -> entrada 1er M15 de 04:00)
+//   A1    Asia Model.1         barrido Asia 00-02 + conf 02:00 -> entrada 03:00
 //   LR22  London Reversal 2.2  raid 04:00                      -> entrada 04:45
 //   NYR2  NY Reversal.2        extremo del dia 05-07 + OB + desplaz. -> 08:00
 //   NYC1  NY Continuation.1    LR previo + LRLR (pullback 05-07)    -> 08:00
 //   NYR1  NY Reversal.1        raid LDNH/LDNL 08:00/09:00 -> entrada 09/10
-//   NYC2  NY Continuation.2    (opcional, apagado) LR1+NYC1 -> 09:00, 0.5R
-// Sin OSOK: Asia Model.2 y las marcas with/against quedan fuera a proposito.
 //
-// Niveles: Asia = 20:00-23:59 NY de la tarde anterior; LDNH/LDNL = 02:00-07:59;
-// PDH/PDL = dia natural NY anterior. Todas las horas en America/New_York.
-// Confirmacion de raid = la vela cierra de vuelta al otro lado del nivel en la
-// direccion del giro (proxy H1 del OB+desplazamiento del spec).
+// Etiqueta = solo el codigo del modelo; el detalle (direccion, hora de entrada
+// y SL) esta en el tooltip de la etiqueta.
+//
+// Asia: lineas punteadas de 17:00 a 00:00 NY a la altura del maximo y minimo
+// del rango (inicio del rango configurable; 17:00 por defecto, 20:00 = spec).
+// LDNH/LDNL = 02:00-07:59. PDH/PDL = dia natural NY anterior.
+// Todas las horas en America/New_York.
 // ─────────────────────────────────────────────────────────────────────────────
 //@version=5
-indicator("Josh Models H1 (sin OSOK)", overlay=true, max_labels_count=500, max_lines_count=500, max_boxes_count=500)
+indicator("Josh Models H1", overlay=true, max_labels_count=500, max_lines_count=500)
 
 // ══════════════════════════════════════════════════════════════════
 // INPUTS
@@ -35,17 +40,17 @@ i_lr22  = input.bool(true,  "LR2.2  (raid 04:00, entrada 04:45)",  group=g1)
 i_nyr2  = input.bool(true,  "NYR2   (extremo 05-07 + desplaz.)",   group=g1)
 i_nyc1  = input.bool(true,  "NYC1   (LR previo + LRLR)",           group=g1)
 i_nyr1  = input.bool(true,  "NYR1   (raid LDNH/LDNL 08/09)",       group=g1)
-i_nyc2  = input.bool(false, "NYC2   (3er trade, 0.5R)",            group=g1)
 
 g2 = "Niveles"
-i_asiaBox = input.bool(true,  "Caja del rango de Asia",  group=g2)
-i_ldnLin  = input.bool(true,  "Lineas LDNH/LDNL",        group=g2)
-i_pdLin   = input.bool(false, "Lineas PDH/PDL",          group=g2)
+i_asiaLin = input.bool(true, "Lineas AH/AL (17:00-00:00)",              group=g2)
+i_asiaIni = input.int(17,    "Inicio del rango de Asia (hora NY)", minval=17, maxval=22, group=g2)
+i_ldnLin  = input.bool(true, "Lineas LDNH/LDNL",                        group=g2)
+i_pdLin   = input.bool(false, "Lineas PDH/PDL",                         group=g2)
 
 g3 = "Colores"
 c_largo = input.color(color.new(#26a69a, 0),  "Señal larga",   group=g3)
 c_corto = input.color(color.new(#ef5350, 0),  "Señal corta",   group=g3)
-c_asia  = input.color(color.new(#2962ff, 88), "Rango de Asia", group=g3)
+c_asia  = input.color(color.new(#2962ff, 0),  "Lineas de Asia",group=g3)
 c_ldn   = input.color(color.new(#ff9800, 30), "Londres",       group=g3)
 c_pd    = input.color(color.new(#9e9e9e, 40), "Dia previo",    group=g3)
 
@@ -61,11 +66,12 @@ var float pdH = na
 var float pdL = na
 var float curH = na
 var float curL = na
-// rango de Asia: acumulador 20-23 y valores congelados a medianoche
+// rango de Asia: acumulador de la tarde y valores congelados a medianoche
 var float asiaAccH = na
 var float asiaAccL = na
 var float asiaH = na
 var float asiaL = na
+var int   barTarde = na       // barra de las 17:00 (inicio de las lineas)
 // Londres 02:00-07:59
 var float ldnH = na
 var float ldnL = na
@@ -75,17 +81,11 @@ var float[] aO  = array.new_float()
 var float[] aHi = array.new_float()
 var float[] aLo = array.new_float()
 var float[] aCl = array.new_float()
-// detecciones del dia
-var string ldnModelo = ""     // "" | "LR21" | "LR1"
+// un modelo como maximo por sesion
+var bool   ldnHecha = false   // mañana de Londres (LR21/LR1/A1/LR22)
+var bool   nyHecha  = false   // Nueva York (NYR2/NYC1/NYR1)
+var string ldnModelo = ""     // "" | "LR21" | "LR1"  (para encadenar NYC1)
 var int    ldnDir    = 0
-var bool   lr1Det    = false
-var bool   lr1Listo  = false
-var bool   lr22Det   = false
-var bool   nyc1Det   = false
-var int    nyc1Dir   = 0
-var bool   nyr1Det   = false
-var bool   nyr2Det   = false
-var bool   asia1Det  = false
 
 f_idx(int hora) =>
     int r = -1
@@ -106,8 +106,6 @@ bool avisoTF = not (timeframe.isintraday and timeframe.multiplier == 60)
 if avisoTF and barstate.islast
     label.new(bar_index, close, "Este indicador es para grafico H1", style=label.style_label_left, color=color.new(color.red, 0), textcolor=color.white, size=size.large)
 
-bool hayNueva = false
-
 if barstate.isconfirmed and not avisoTF
     int hNY  = hour(time, TZ)
     int diaN = dayofmonth(time, TZ)
@@ -121,6 +119,16 @@ if barstate.isconfirmed and not avisoTF
             curL := na
     curH := na(curH) ? high : math.max(curH, high)
     curL := na(curL) ? low  : math.min(curL, low)
+
+    // ── inicio de la tarde (17:00) ──
+    bool arrancaTarde = false
+    if hNY >= 17
+        if na(prevH)
+            arrancaTarde := true
+        else if prevH < 17
+            arrancaTarde := true
+    if arrancaTarde
+        barTarde := bar_index
 
     // ── medianoche NY (la hora "envuelve"): nueva jornada operativa ──
     bool medianoche = false
@@ -137,33 +145,30 @@ if barstate.isconfirmed and not avisoTF
         aHi.clear()
         aLo.clear()
         aCl.clear()
+        ldnHecha := false
+        nyHecha := false
         ldnModelo := ""
         ldnDir := 0
-        lr1Det := false
-        lr1Listo := false
-        lr22Det := false
-        nyc1Det := false
-        nyc1Dir := 0
-        nyr1Det := false
-        nyr2Det := false
-        asia1Det := false
-        if i_asiaBox and not na(asiaH)
-            box.new(bar_index, asiaH, bar_index + 8, asiaL, bgcolor=c_asia, border_color=color.new(#2962ff, 60))
+        // lineas punteadas del rango de Asia, de 17:00 a 00:00
+        if i_asiaLin and not na(asiaH)
+            if not na(barTarde)
+                line.new(barTarde, asiaH, bar_index, asiaH, color=c_asia, style=line.style_dotted)
+                line.new(barTarde, asiaL, bar_index, asiaL, color=c_asia, style=line.style_dotted)
         if i_pdLin and not na(pdH)
             line.new(bar_index, pdH, bar_index + 16, pdH, color=c_pd, style=line.style_dotted)
             line.new(bar_index, pdL, bar_index + 16, pdL, color=c_pd, style=line.style_dotted)
 
     // ── acumuladores de sesion ──
     bool arrancaAsia = false
-    if hNY >= 20
+    if hNY >= i_asiaIni
         if na(prevH)
             arrancaAsia := true
-        else if prevH < 20
+        else if prevH < i_asiaIni
             arrancaAsia := true
     if arrancaAsia
         asiaAccH := high
         asiaAccL := low
-    else if hNY >= 20
+    else if hNY >= i_asiaIni
         asiaAccH := math.max(nz(asiaAccH, high), high)
         asiaAccL := math.min(nz(asiaAccL, low), low)
     if hNY >= 2 and hNY <= 7
@@ -176,15 +181,13 @@ if barstate.isconfirmed and not avisoTF
         aLo.push(low)
         aCl.push(close)
 
-    float cuerpo = math.abs(close - open)
-    float rango  = math.max(high - low, syminfo.mintick)
-
     // ══════════════ DETECTORES (a cierre de cada H1) ══════════════
-    // ── cierre de 02:00: LR21, LR1(raid 2), ASIA1 ──
+    // un modelo por sesion: el primero que arma pone ldnHecha / nyHecha
+    // ── cierre de 02:00: LR21 > LR1(raid 2) > A1 ──
     if hNY == 2 and not na(asiaH)
         int i1 = f_idx(1)
         // LR2.1: 01:00 toma AH/PDH o AL/PDL y las 02:00 DEBEN confirmar
-        if i1 >= 0
+        if not ldnHecha and i_lr21 and i1 >= 0
             float h1v = aHi.get(i1)
             float l1v = aLo.get(i1)
             float nivelAlto = na
@@ -200,34 +203,29 @@ if barstate.isconfirmed and not avisoTF
                 if l1v < pdL
                     nivelBajo := pdL
             if not na(nivelAlto) and close < open and close < nivelAlto
+                ldnHecha := true
                 ldnModelo := "LR21"
                 ldnDir := -1
-                if i_lr21
-                    f_senal("LR2.1", "CORTO  entrada 03:00", false, math.max(nivelAlto, h1v))
-            if ldnModelo == "" and not na(nivelBajo) and close > open and close > nivelBajo
+                f_senal("LR2.1", "CORTO  entrada 03:00", false, math.max(nivelAlto, h1v))
+            if not ldnHecha and not na(nivelBajo) and close > open and close > nivelBajo
+                ldnHecha := true
                 ldnModelo := "LR21"
                 ldnDir := 1
-                if i_lr21
-                    f_senal("LR2.1", "LARGO  entrada 03:00", true, math.min(nivelBajo, l1v))
+                f_senal("LR2.1", "LARGO  entrada 03:00", true, math.min(nivelBajo, l1v))
         // LR1 raid en la propia vela de 02:00, confirmado (cierra de vuelta dentro)
-        if not lr1Listo and high > asiaH and close < open and close < asiaH
-            lr1Det := true
-            lr1Listo := true
-            if ldnModelo == ""
+        if not ldnHecha and i_lr1
+            if high > asiaH and close < open and close < asiaH
+                ldnHecha := true
                 ldnModelo := "LR1"
                 ldnDir := -1
-            if i_lr1
                 f_senal("LR1", "CORTO  entrada 03:00", false, asiaH)
-        if not lr1Listo and low < asiaL and close > open and close > asiaL
-            lr1Det := true
-            lr1Listo := true
-            if ldnModelo == ""
+            else if low < asiaL and close > open and close > asiaL
+                ldnHecha := true
                 ldnModelo := "LR1"
                 ldnDir := 1
-            if i_lr1
                 f_senal("LR1", "LARGO  entrada 03:00", true, asiaL)
-        // ASIA1: barrido del extremo de Asia en 00-02 y las 02:00 confirman
-        if not asia1Det
+        // Asia.1: barrido del extremo de Asia en 00-02 y las 02:00 confirman
+        if not ldnHecha and i_asia1
             bool barrioAlto = false
             bool barrioBajo = false
             if aHr.size() > 0
@@ -238,51 +236,43 @@ if barstate.isconfirmed and not avisoTF
                         if aLo.get(i) < asiaL
                             barrioBajo := true
             if barrioAlto and close < open and close < asiaH
-                asia1Det := true
-                if i_asia1
-                    f_senal("A1", "Asia.1  CORTO  entrada 03:00", false, high)
-            if not asia1Det and barrioBajo and close > open and close > asiaL
-                asia1Det := true
-                if i_asia1
-                    f_senal("A1", "Asia.1  LARGO  entrada 03:00", true, low)
+                ldnHecha := true
+                f_senal("A1", "Asia.1  CORTO  entrada 03:00", false, high)
+            else if barrioBajo and close > open and close > asiaL
+                ldnHecha := true
+                f_senal("A1", "Asia.1  LARGO  entrada 03:00", true, low)
 
     // ── cierre de 03:00: LR1 raid 3 (confirmado o excepcion) ──
-    if hNY == 3 and not na(asiaH) and not lr1Listo
+    if hNY == 3 and not na(asiaH) and not ldnHecha and i_lr1
         if high > asiaH
-            lr1Det := true
-            lr1Listo := true
-            if ldnModelo == ""
-                ldnModelo := "LR1"
-                ldnDir := -1
+            ldnHecha := true
+            ldnModelo := "LR1"
+            ldnDir := -1
             bool conf = close < open and close < asiaH
-            if i_lr1 and conf
+            if conf
                 f_senal("LR1", "CORTO  entrada 04:00", false, asiaH)
-            if i_lr1 and not conf
+            else
                 f_senal("LR1*", "excepcion: CORTO, entrada 1er M15 de 04:00", false, asiaH)
         else if low < asiaL
-            lr1Det := true
-            lr1Listo := true
-            if ldnModelo == ""
-                ldnModelo := "LR1"
-                ldnDir := 1
+            ldnHecha := true
+            ldnModelo := "LR1"
+            ldnDir := 1
             bool conf = close > open and close > asiaL
-            if i_lr1 and conf
+            if conf
                 f_senal("LR1", "LARGO  entrada 04:00", true, asiaL)
-            if i_lr1 and not conf
+            else
                 f_senal("LR1*", "excepcion: LARGO, entrada 1er M15 de 04:00", true, asiaL)
 
-    // ── cierre de 04:00: LR2.2 ──
-    if hNY == 4 and not na(asiaH)
+    // ── cierre de 04:00: LR2.2 (no fija ldnModelo: no encadena NYC1) ──
+    if hNY == 4 and not na(asiaH) and not ldnHecha and i_lr22
         if high > asiaH
-            lr22Det := true
-            if i_lr22
-                f_senal("LR2.2", "CORTO  entrada 04:45", false, asiaH)
+            ldnHecha := true
+            f_senal("LR2.2", "CORTO  entrada 04:45", false, asiaH)
         else if low < asiaL
-            lr22Det := true
-            if i_lr22
-                f_senal("LR2.2", "LARGO  entrada 04:45", true, asiaL)
+            ldnHecha := true
+            f_senal("LR2.2", "LARGO  entrada 04:45", true, asiaL)
 
-    // ── cierre de 07:00: NYR2 y NYC1 (entrada 08:00) ──
+    // ── cierre de 07:00: NYR2 > NYC1 (entrada 08:00) ──
     if hNY == 7
         // extremo del dia 00-07 y su hora (la ultima que lo marca)
         float altoDia = na
@@ -303,11 +293,11 @@ if barstate.isconfirmed and not avisoTF
         if not na(horaAlto)
             if horaAlto >= 5
                 nyr2AltoOk := true
-        if not nyr2Det and nyr2AltoOk
+        if not nyHecha and i_nyr2 and nyr2AltoOk
             for h = horaAlto to 7
                 int ib = f_idx(h)
                 int ip = f_idx(h - 1)
-                if ib >= 0 and ip >= 0 and not nyr2Det
+                if ib >= 0 and ip >= 0 and not nyHecha
                     float bo = aO.get(ib)
                     float bc = aCl.get(ib)
                     float cpo = math.abs(bc - bo)
@@ -319,20 +309,20 @@ if barstate.isconfirmed and not avisoTF
                                 if aCl.get(k) > aO.get(k)
                                     hayOB := true
                         if hayOB
-                            nyr2Det := true
                             int i7 = f_idx(7)
-                            if i_nyr2 and i7 >= 0
+                            if i7 >= 0
+                                nyHecha := true
                                 f_senal("NYR2", "CORTO  entrada 08:00", false, aHi.get(i7))
         // NYR2 largo espejo
         bool nyr2BajoOk = false
         if not na(horaBajo)
             if horaBajo >= 5
                 nyr2BajoOk := true
-        if not nyr2Det and nyr2BajoOk
+        if not nyHecha and i_nyr2 and nyr2BajoOk
             for h = horaBajo to 7
                 int ib = f_idx(h)
                 int ip = f_idx(h - 1)
-                if ib >= 0 and ip >= 0 and not nyr2Det
+                if ib >= 0 and ip >= 0 and not nyHecha
                     float bo = aO.get(ib)
                     float bc = aCl.get(ib)
                     float cpo = math.abs(bc - bo)
@@ -344,12 +334,12 @@ if barstate.isconfirmed and not avisoTF
                                 if aCl.get(k) < aO.get(k)
                                     hayOB := true
                         if hayOB
-                            nyr2Det := true
                             int i7 = f_idx(7)
-                            if i_nyr2 and i7 >= 0
+                            if i7 >= 0
+                                nyHecha := true
                                 f_senal("NYR2", "LARGO  entrada 08:00", true, aLo.get(i7))
         // NYC1: LR previo con extremo de Londres en 02-04 + LRLR (pullback 05-07)
-        if ldnModelo != "" and not nyc1Det
+        if not nyHecha and i_nyc1 and ldnModelo != ""
             float extNivel = na
             int horaExt = na
             if aHr.size() > 0
@@ -390,28 +380,22 @@ if barstate.isconfirmed and not avisoTF
                                     lrlr := true
                                 pullback := na(pullback) ? aLo.get(i) : math.min(pullback, aLo.get(i))
                 if lrlr
-                    nyc1Det := true
-                    nyc1Dir := ldnDir
+                    nyHecha := true
                     float slNY = ldnDir == -1 ? ldnH : ldnL
-                    if i_nyc1
-                        f_senal("NYC1", (ldnDir == 1 ? "LARGO" : "CORTO") + "  entrada 08:00\nBE al tomar LRLR " + str.tostring(pullback, format.mintick), ldnDir == 1, slNY)
+                    f_senal("NYC1", (ldnDir == 1 ? "LARGO" : "CORTO") + "  entrada 08:00\nBE al tomar LRLR " + str.tostring(pullback, format.mintick), ldnDir == 1, slNY)
         // lineas de Londres
         if i_ldnLin and not na(ldnH)
             line.new(bar_index + 1, ldnH, bar_index + 9, ldnH, color=c_ldn, width=1)
             line.new(bar_index + 1, ldnL, bar_index + 9, ldnL, color=c_ldn, width=1)
 
-    // ── cierre de 08:00 / 09:00: NYR1; cierre de 08:00: NYC2 ──
-    if (hNY == 8 or hNY == 9) and not nyr1Det and not na(ldnH)
+    // ── cierre de 08:00 / 09:00: NYR1 ──
+    if (hNY == 8 or hNY == 9) and not nyHecha and i_nyr1 and not na(ldnH)
         if high > ldnH and close < ldnH
-            nyr1Det := true
-            if i_nyr1
-                f_senal("NYR1", "CORTO  entrada " + (hNY == 8 ? "09:00" : "10:00"), false, high)
+            nyHecha := true
+            f_senal("NYR1", "CORTO  entrada " + (hNY == 8 ? "09:00" : "10:00"), false, high)
         else if low < ldnL and close > ldnL
-            nyr1Det := true
-            if i_nyr1
-                f_senal("NYR1", "LARGO  entrada " + (hNY == 8 ? "09:00" : "10:00"), true, low)
-    if hNY == 8 and i_nyc2 and lr1Det and nyc1Det
-        f_senal("NYC2", (nyc1Dir == 1 ? "LARGO" : "CORTO") + "  entrada 09:00, 0.5R", nyc1Dir == 1, nyc1Dir == -1 ? ldnH : ldnL)
+            nyHecha := true
+            f_senal("NYR1", "LARGO  entrada " + (hNY == 8 ? "09:00" : "10:00"), true, low)
 
     prevH := hNY
     prevDia := diaN
