@@ -95,12 +95,12 @@ f_idx(int hora) =>
                 r := i
     r
 
-f_senal(string txt, bool esLargo, float sl) =>
-    string t = txt + "\nSL " + str.tostring(sl, format.mintick)
+f_senal(string cod, string detalle, bool esLargo, float sl) =>
+    string tip = detalle + "\nSL " + str.tostring(sl, format.mintick)
     if esLargo
-        label.new(bar_index + 1, low, t, style=label.style_label_up, color=c_largo, textcolor=color.white, size=size.small)
+        label.new(bar_index + 1, low, cod, style=label.style_label_up, color=c_largo, textcolor=color.white, size=size.small, tooltip=tip)
     else
-        label.new(bar_index + 1, high, t, style=label.style_label_down, color=c_corto, textcolor=color.white, size=size.small)
+        label.new(bar_index + 1, high, cod, style=label.style_label_down, color=c_corto, textcolor=color.white, size=size.small, tooltip=tip)
 
 bool avisoTF = not (timeframe.isintraday and timeframe.multiplier == 60)
 if avisoTF and barstate.islast
@@ -203,12 +203,12 @@ if barstate.isconfirmed and not avisoTF
                 ldnModelo := "LR21"
                 ldnDir := -1
                 if i_lr21
-                    f_senal("LR2.1 CORTO ent 03:00", false, math.max(nivelAlto, h1v))
+                    f_senal("LR2.1", "CORTO  entrada 03:00", false, math.max(nivelAlto, h1v))
             if ldnModelo == "" and not na(nivelBajo) and close > open and close > nivelBajo
                 ldnModelo := "LR21"
                 ldnDir := 1
                 if i_lr21
-                    f_senal("LR2.1 LARGO ent 03:00", true, math.min(nivelBajo, l1v))
+                    f_senal("LR2.1", "LARGO  entrada 03:00", true, math.min(nivelBajo, l1v))
         // LR1 raid en la propia vela de 02:00, confirmado (cierra de vuelta dentro)
         if not lr1Listo and high > asiaH and close < open and close < asiaH
             lr1Det := true
@@ -217,7 +217,7 @@ if barstate.isconfirmed and not avisoTF
                 ldnModelo := "LR1"
                 ldnDir := -1
             if i_lr1
-                f_senal("LR1 CORTO ent 03:00", false, asiaH)
+                f_senal("LR1", "CORTO  entrada 03:00", false, asiaH)
         if not lr1Listo and low < asiaL and close > open and close > asiaL
             lr1Det := true
             lr1Listo := true
@@ -225,7 +225,7 @@ if barstate.isconfirmed and not avisoTF
                 ldnModelo := "LR1"
                 ldnDir := 1
             if i_lr1
-                f_senal("LR1 LARGO ent 03:00", true, asiaL)
+                f_senal("LR1", "LARGO  entrada 03:00", true, asiaL)
         // ASIA1: barrido del extremo de Asia en 00-02 y las 02:00 confirman
         if not asia1Det
             bool barrioAlto = false
@@ -240,11 +240,11 @@ if barstate.isconfirmed and not avisoTF
             if barrioAlto and close < open and close < asiaH
                 asia1Det := true
                 if i_asia1
-                    f_senal("ASIA.1 CORTO ent 03:00", false, high)
+                    f_senal("A1", "Asia.1  CORTO  entrada 03:00", false, high)
             if not asia1Det and barrioBajo and close > open and close > asiaL
                 asia1Det := true
                 if i_asia1
-                    f_senal("ASIA.1 LARGO ent 03:00", true, low)
+                    f_senal("A1", "Asia.1  LARGO  entrada 03:00", true, low)
 
     // ── cierre de 03:00: LR1 raid 3 (confirmado o excepcion) ──
     if hNY == 3 and not na(asiaH) and not lr1Listo
@@ -256,9 +256,9 @@ if barstate.isconfirmed and not avisoTF
                 ldnDir := -1
             bool conf = close < open and close < asiaH
             if i_lr1 and conf
-                f_senal("LR1 CORTO ent 04:00", false, asiaH)
+                f_senal("LR1", "CORTO  entrada 04:00", false, asiaH)
             if i_lr1 and not conf
-                f_senal("LR1 exc CORTO ent 1er M15 04:00", false, asiaH)
+                f_senal("LR1*", "excepcion: CORTO, entrada 1er M15 de 04:00", false, asiaH)
         else if low < asiaL
             lr1Det := true
             lr1Listo := true
@@ -267,20 +267,20 @@ if barstate.isconfirmed and not avisoTF
                 ldnDir := 1
             bool conf = close > open and close > asiaL
             if i_lr1 and conf
-                f_senal("LR1 LARGO ent 04:00", true, asiaL)
+                f_senal("LR1", "LARGO  entrada 04:00", true, asiaL)
             if i_lr1 and not conf
-                f_senal("LR1 exc LARGO ent 1er M15 04:00", true, asiaL)
+                f_senal("LR1*", "excepcion: LARGO, entrada 1er M15 de 04:00", true, asiaL)
 
     // ── cierre de 04:00: LR2.2 ──
     if hNY == 4 and not na(asiaH)
         if high > asiaH
             lr22Det := true
             if i_lr22
-                f_senal("LR2.2 CORTO ent 04:45", false, asiaH)
+                f_senal("LR2.2", "CORTO  entrada 04:45", false, asiaH)
         else if low < asiaL
             lr22Det := true
             if i_lr22
-                f_senal("LR2.2 LARGO ent 04:45", true, asiaL)
+                f_senal("LR2.2", "LARGO  entrada 04:45", true, asiaL)
 
     // ── cierre de 07:00: NYR2 y NYC1 (entrada 08:00) ──
     if hNY == 7
@@ -322,7 +322,7 @@ if barstate.isconfirmed and not avisoTF
                             nyr2Det := true
                             int i7 = f_idx(7)
                             if i_nyr2 and i7 >= 0
-                                f_senal("NYR2 CORTO ent 08:00", false, aHi.get(i7))
+                                f_senal("NYR2", "CORTO  entrada 08:00", false, aHi.get(i7))
         // NYR2 largo espejo
         bool nyr2BajoOk = false
         if not na(horaBajo)
@@ -347,7 +347,7 @@ if barstate.isconfirmed and not avisoTF
                             nyr2Det := true
                             int i7 = f_idx(7)
                             if i_nyr2 and i7 >= 0
-                                f_senal("NYR2 LARGO ent 08:00", true, aLo.get(i7))
+                                f_senal("NYR2", "LARGO  entrada 08:00", true, aLo.get(i7))
         // NYC1: LR previo con extremo de Londres en 02-04 + LRLR (pullback 05-07)
         if ldnModelo != "" and not nyc1Det
             float extNivel = na
@@ -394,7 +394,7 @@ if barstate.isconfirmed and not avisoTF
                     nyc1Dir := ldnDir
                     float slNY = ldnDir == -1 ? ldnH : ldnL
                     if i_nyc1
-                        f_senal("NYC1 " + (ldnDir == 1 ? "LARGO" : "CORTO") + " ent 08:00\nBE al tomar LRLR " + str.tostring(pullback, format.mintick), ldnDir == 1, slNY)
+                        f_senal("NYC1", (ldnDir == 1 ? "LARGO" : "CORTO") + "  entrada 08:00\nBE al tomar LRLR " + str.tostring(pullback, format.mintick), ldnDir == 1, slNY)
         // lineas de Londres
         if i_ldnLin and not na(ldnH)
             line.new(bar_index + 1, ldnH, bar_index + 9, ldnH, color=c_ldn, width=1)
@@ -405,13 +405,13 @@ if barstate.isconfirmed and not avisoTF
         if high > ldnH and close < ldnH
             nyr1Det := true
             if i_nyr1
-                f_senal("NYR1 CORTO ent " + (hNY == 8 ? "09:00" : "10:00"), false, high)
+                f_senal("NYR1", "CORTO  entrada " + (hNY == 8 ? "09:00" : "10:00"), false, high)
         else if low < ldnL and close > ldnL
             nyr1Det := true
             if i_nyr1
-                f_senal("NYR1 LARGO ent " + (hNY == 8 ? "09:00" : "10:00"), true, low)
+                f_senal("NYR1", "LARGO  entrada " + (hNY == 8 ? "09:00" : "10:00"), true, low)
     if hNY == 8 and i_nyc2 and lr1Det and nyc1Det
-        f_senal("NYC2 " + (nyc1Dir == 1 ? "LARGO" : "CORTO") + " ent 09:00 (0.5R)", nyc1Dir == 1, nyc1Dir == -1 ? ldnH : ldnL)
+        f_senal("NYC2", (nyc1Dir == 1 ? "LARGO" : "CORTO") + "  entrada 09:00, 0.5R", nyc1Dir == 1, nyc1Dir == -1 ? ldnH : ldnL)
 
     prevH := hNY
     prevDia := diaN
