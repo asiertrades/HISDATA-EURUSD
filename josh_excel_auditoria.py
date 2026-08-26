@@ -59,12 +59,19 @@ def evalua(fecha: date, por_dia) -> dict:
 
     ldn_modelo = ""   # para encadenar NYC1: solo LR21/LR1
     ldn_dir = 0
+    MIN_R = 5 * 0.0001   # spec §6.3: riesgo minimo 5 pips (entrada estimada = cierre de la vela de señal)
 
-    def senal_ldn(cod, dire, ent, sl):
+    def senal_ldn(cod, dire, ent, sl, ref):
+        if abs(ref - sl) < MIN_R:
+            return False
         fila["ldn"] = {"modelo": cod, "dir": dire, "entrada": ent, "sl": sl}
+        return True
 
-    def senal_ny(cod, dire, ent, sl):
+    def senal_ny(cod, dire, ent, sl, ref):
+        if abs(ref - sl) < MIN_R:
+            return False
         fila["ny"] = {"modelo": cod, "dir": dire, "entrada": ent, "sl": sl}
+        return True
 
     # ── cierre de 02:00: LR21 > LR1(raid 2) > A1 ──
     b2 = h1d.get(2)
@@ -75,47 +82,47 @@ def evalua(fecha: date, por_dia) -> dict:
             nivel_alto = asiaH if b1.h > asiaH else (pdH if (pdH is not None and b1.h > pdH) else None)
             nivel_bajo = asiaL if b1.l < asiaL else (pdL if (pdL is not None and b1.l < pdL) else None)
             if nivel_alto is not None and b2.bajista and b2.c < nivel_alto:
-                senal_ldn("LR2.1", -1, "03:00", max(nivel_alto, b1.h))
-                ldn_modelo, ldn_dir = "LR21", -1
+                if senal_ldn("LR2.1", -1, "03:00", max(nivel_alto, b1.h), b2.c):
+                    ldn_modelo, ldn_dir = "LR21", -1
             elif nivel_bajo is not None and b2.alcista and b2.c > nivel_bajo:
-                senal_ldn("LR2.1", 1, "03:00", min(nivel_bajo, b1.l))
-                ldn_modelo, ldn_dir = "LR21", 1
+                if senal_ldn("LR2.1", 1, "03:00", min(nivel_bajo, b1.l), b2.c):
+                    ldn_modelo, ldn_dir = "LR21", 1
         # LR1 raid en la vela de 02:00 (proxy H1, como el indicador)
         if fila["ldn"] is None:
             if b2.h > asiaH and b2.bajista and b2.c < asiaH:
-                senal_ldn("LR1", -1, "03:00", asiaH)
-                ldn_modelo, ldn_dir = "LR1", -1
+                if senal_ldn("LR1", -1, "03:00", asiaH, b2.c):
+                    ldn_modelo, ldn_dir = "LR1", -1
             elif b2.l < asiaL and b2.alcista and b2.c > asiaL:
-                senal_ldn("LR1", 1, "03:00", asiaL)
-                ldn_modelo, ldn_dir = "LR1", 1
+                if senal_ldn("LR1", 1, "03:00", asiaL, b2.c):
+                    ldn_modelo, ldn_dir = "LR1", 1
         # A1
         if fila["ldn"] is None:
             barrio_alto = any(h1d[h].h > asiaH for h in (0, 1, 2) if h in h1d)
             barrio_bajo = any(h1d[h].l < asiaL for h in (0, 1, 2) if h in h1d)
             if barrio_alto and b2.bajista and b2.c < asiaH:
-                senal_ldn("A1", -1, "03:00", b2.h)
+                senal_ldn("A1", -1, "03:00", b2.h, b2.c)
             elif barrio_bajo and b2.alcista and b2.c > asiaL:
-                senal_ldn("A1", 1, "03:00", b2.l)
+                senal_ldn("A1", 1, "03:00", b2.l, b2.c)
 
-    # ── cierre de 03:00: LR1 (confirmado o excepcion) ──
+    # ── cierre de 03:00: LR1 raid 3, SOLO con confirmacion ──
+    # sin confirmacion no hay señal y la sesion sigue libre (puede armar LR2.2)
     b3 = h1d.get(3)
     if fila["ldn"] is None and b3 is not None:
-        if b3.h > asiaH:
-            conf = b3.bajista and b3.c < asiaH
-            senal_ldn("LR1" if conf else "LR1*", -1, "04:00" if conf else "1er M15 04:00", asiaH)
-            ldn_modelo, ldn_dir = "LR1", -1
-        elif b3.l < asiaL:
-            conf = b3.alcista and b3.c > asiaL
-            senal_ldn("LR1" if conf else "LR1*", 1, "04:00" if conf else "1er M15 04:00", asiaL)
-            ldn_modelo, ldn_dir = "LR1", 1
+        if b3.h > asiaH and b3.bajista and b3.c < asiaH:
+            if senal_ldn("LR1", -1, "04:00", asiaH, b3.c):
+                ldn_modelo, ldn_dir = "LR1", -1
+        elif b3.l < asiaL and b3.alcista and b3.c > asiaL:
+            if senal_ldn("LR1", 1, "04:00", asiaL, b3.c):
+                ldn_modelo, ldn_dir = "LR1", 1
 
-    # ── cierre de 04:00: LR2.2 (no encadena NYC1) ──
+    # ── cierre de 04:00: LR2.2, SOLO con confirmacion (cierre de vuelta
+    # dentro); entrada 05:00. No encadena NYC1. ──
     b4 = h1d.get(4)
     if fila["ldn"] is None and b4 is not None:
-        if b4.h > asiaH:
-            senal_ldn("LR2.2", -1, "04:45", asiaH)
-        elif b4.l < asiaL:
-            senal_ldn("LR2.2", 1, "04:45", asiaL)
+        if b4.h > asiaH and b4.bajista and b4.c < asiaH:
+            senal_ldn("LR2.2", -1, "05:00", asiaH, b4.c)
+        elif b4.l < asiaL and b4.alcista and b4.c > asiaL:
+            senal_ldn("LR2.2", 1, "05:00", asiaL, b4.c)
 
     # ── cierre de 07:00: NYR2 > NYC1 ──
     bars07 = [(h, h1d[h]) for h in range(0, 8) if h in h1d]
@@ -138,14 +145,12 @@ def evalua(fecha: date, por_dia) -> dict:
                     if any(h1d[k].alcista for k in horas if k < h):
                         b7 = h1d.get(7)
                         if b7 is not None:
-                            senal_ny("NYR2", -1, "08:00", b7.h)
-                            return True
+                            return senal_ny("NYR2", -1, "08:00", b7.h, b7.c)
                 if dire == 1 and b.alcista and cpo >= 0.5 * rgo and b.c > p.h:
                     if any(h1d[k].bajista for k in horas if k < h):
                         b7 = h1d.get(7)
                         if b7 is not None:
-                            senal_ny("NYR2", 1, "08:00", b7.l)
-                            return True
+                            return senal_ny("NYR2", 1, "08:00", b7.l, b7.c)
             return False
 
         if fila["ny"] is None:
@@ -172,7 +177,9 @@ def evalua(fecha: date, por_dia) -> dict:
                             lrlr = any(b.bajista for _, b in b57)
                             sl = ldnL
                         if lrlr:
-                            senal_ny("NYC1", ldn_dir, "08:00", sl)
+                            b7 = h1d.get(7)
+                            if b7 is not None:
+                                senal_ny("NYC1", ldn_dir, "08:00", sl, b7.c)
 
     # ── cierre de 08:00/09:00: NYR1 ──
     for h in (8, 9):
@@ -182,9 +189,9 @@ def evalua(fecha: date, por_dia) -> dict:
         if b is None:
             continue
         if b.h > ldnH and b.c < ldnH:
-            senal_ny("NYR1", -1, "09:00" if h == 8 else "10:00", b.h)
+            senal_ny("NYR1", -1, "09:00" if h == 8 else "10:00", b.h, b.c)
         elif b.l < ldnL and b.c > ldnL:
-            senal_ny("NYR1", 1, "09:00" if h == 8 else "10:00", b.l)
+            senal_ny("NYR1", 1, "09:00" if h == 8 else "10:00", b.l, b.c)
 
     return fila
 

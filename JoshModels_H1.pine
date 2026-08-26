@@ -11,9 +11,10 @@
 //
 //   LR21  London Reversal 2.1  raid 01:00 + confirmacion 02:00 -> entrada 03:00
 //   LR1   London Reversal.1    raid 02:00/03:00 confirmado     -> entrada 03/04
-//         (excepcion LR1*: raid 03:00 sin confirmar -> entrada 1er M15 de 04:00)
+//         Sin confirmacion NO hay señal: la rama de excepcion del spec
+//         (entrada al 1er M15 de 04:00 sin confirmar) queda descartada.
 //   A1    Asia Model.1         barrido Asia 00-02 + conf 02:00 -> entrada 03:00
-//   LR22  London Reversal 2.2  raid 04:00                      -> entrada 04:45
+//   LR22  London Reversal 2.2  raid 04:00 confirmado           -> entrada 05:00
 //   NYR2  NY Reversal.2        extremo del dia 05-07 + OB + desplaz. -> 08:00
 //   NYC1  NY Continuation.1    LR previo + LRLR (pullback 05-07)    -> 08:00
 //   NYR1  NY Reversal.1        raid LDNH/LDNL 08:00/09:00 -> entrada 09/10
@@ -36,10 +37,11 @@ g1 = "Modelos"
 i_lr21  = input.bool(true,  "LR2.1  (raid 01:00, confirma 02:00)", group=g1)
 i_lr1   = input.bool(true,  "LR1    (raid 02:00/03:00)",           group=g1)
 i_asia1 = input.bool(true,  "Asia.1 (barrido 00-02, conf. 02:00)", group=g1)
-i_lr22  = input.bool(true,  "LR2.2  (raid 04:00, entrada 04:45)",  group=g1)
+i_lr22  = input.bool(true,  "LR2.2  (raid 04:00 conf., ent 05:00)",group=g1)
 i_nyr2  = input.bool(true,  "NYR2   (extremo 05-07 + desplaz.)",   group=g1)
 i_nyc1  = input.bool(true,  "NYC1   (LR previo + LRLR)",           group=g1)
 i_nyr1  = input.bool(true,  "NYR1   (raid LDNH/LDNL 08/09)",       group=g1)
+i_minR  = input.float(5.0,  "Riesgo minimo (pips)", minval=0, step=0.5,  group=g1, tooltip="Spec §6.3: se descarta la señal si la distancia entre la entrada estimada (cierre de la vela de señal) y el SL es menor que esto. La sesion queda libre para el siguiente modelo.")
 
 g2 = "Niveles"
 i_asiaLin = input.bool(true, "Lineas AH/AL (17:00-00:00)",              group=g2)
@@ -55,6 +57,7 @@ c_ldn   = input.color(color.new(#ff9800, 30), "Londres",       group=g3)
 c_pd    = input.color(color.new(#9e9e9e, 40), "Dia previo",    group=g3)
 
 string TZ = "America/New_York"
+float  PIP = syminfo.mintick * 10
 
 // ══════════════════════════════════════════════════════════════════
 // ESTADO DIARIO
@@ -95,12 +98,17 @@ f_idx(int hora) =>
                 r := i
     r
 
+// dibuja la señal solo si el riesgo estimado (cierre de la vela de señal al
+// SL) llega al minimo; devuelve true si la señal es valida y consume la sesion
 f_senal(string cod, string detalle, bool esLargo, float sl) =>
-    string tip = detalle + "\nSL " + str.tostring(sl, format.mintick)
-    if esLargo
-        label.new(bar_index + 1, low, cod, style=label.style_label_up, color=c_largo, textcolor=color.white, size=size.small, tooltip=tip)
-    else
-        label.new(bar_index + 1, high, cod, style=label.style_label_down, color=c_corto, textcolor=color.white, size=size.small, tooltip=tip)
+    bool valida = math.abs(close - sl) >= i_minR * PIP
+    if valida
+        string tip = detalle + "\nSL " + str.tostring(sl, format.mintick)
+        if esLargo
+            label.new(bar_index + 1, low, cod, style=label.style_label_up, color=c_largo, textcolor=color.white, size=size.small, tooltip=tip)
+        else
+            label.new(bar_index + 1, high, cod, style=label.style_label_down, color=c_corto, textcolor=color.white, size=size.small, tooltip=tip)
+    valida
 
 bool avisoTF = not (timeframe.isintraday and timeframe.multiplier == 60)
 if avisoTF and barstate.islast
@@ -203,27 +211,27 @@ if barstate.isconfirmed and not avisoTF
                 if l1v < pdL
                     nivelBajo := pdL
             if not na(nivelAlto) and close < open and close < nivelAlto
-                ldnHecha := true
-                ldnModelo := "LR21"
-                ldnDir := -1
-                f_senal("LR2.1", "CORTO  entrada 03:00", false, math.max(nivelAlto, h1v))
+                if f_senal("LR2.1", "CORTO  entrada 03:00", false, math.max(nivelAlto, h1v))
+                    ldnHecha := true
+                    ldnModelo := "LR21"
+                    ldnDir := -1
             if not ldnHecha and not na(nivelBajo) and close > open and close > nivelBajo
-                ldnHecha := true
-                ldnModelo := "LR21"
-                ldnDir := 1
-                f_senal("LR2.1", "LARGO  entrada 03:00", true, math.min(nivelBajo, l1v))
+                if f_senal("LR2.1", "LARGO  entrada 03:00", true, math.min(nivelBajo, l1v))
+                    ldnHecha := true
+                    ldnModelo := "LR21"
+                    ldnDir := 1
         // LR1 raid en la propia vela de 02:00, confirmado (cierra de vuelta dentro)
         if not ldnHecha and i_lr1
             if high > asiaH and close < open and close < asiaH
-                ldnHecha := true
-                ldnModelo := "LR1"
-                ldnDir := -1
-                f_senal("LR1", "CORTO  entrada 03:00", false, asiaH)
+                if f_senal("LR1", "CORTO  entrada 03:00", false, asiaH)
+                    ldnHecha := true
+                    ldnModelo := "LR1"
+                    ldnDir := -1
             else if low < asiaL and close > open and close > asiaL
-                ldnHecha := true
-                ldnModelo := "LR1"
-                ldnDir := 1
-                f_senal("LR1", "LARGO  entrada 03:00", true, asiaL)
+                if f_senal("LR1", "LARGO  entrada 03:00", true, asiaL)
+                    ldnHecha := true
+                    ldnModelo := "LR1"
+                    ldnDir := 1
         // Asia.1: barrido del extremo de Asia en 00-02 y las 02:00 confirman
         if not ldnHecha and i_asia1
             bool barrioAlto = false
@@ -236,41 +244,37 @@ if barstate.isconfirmed and not avisoTF
                         if aLo.get(i) < asiaL
                             barrioBajo := true
             if barrioAlto and close < open and close < asiaH
-                ldnHecha := true
-                f_senal("A1", "Asia.1  CORTO  entrada 03:00", false, high)
+                if f_senal("A1", "Asia.1  CORTO  entrada 03:00", false, high)
+                    ldnHecha := true
             else if barrioBajo and close > open and close > asiaL
-                ldnHecha := true
-                f_senal("A1", "Asia.1  LARGO  entrada 03:00", true, low)
+                if f_senal("A1", "Asia.1  LARGO  entrada 03:00", true, low)
+                    ldnHecha := true
 
-    // ── cierre de 03:00: LR1 raid 3 (confirmado o excepcion) ──
+    // ── cierre de 03:00: LR1 raid 3, SOLO con confirmacion ──
+    // sin confirmacion no hay señal y la sesion sigue libre (puede armar LR2.2)
     if hNY == 3 and not na(asiaH) and not ldnHecha and i_lr1
-        if high > asiaH
-            ldnHecha := true
-            ldnModelo := "LR1"
-            ldnDir := -1
-            bool conf = close < open and close < asiaH
-            if conf
-                f_senal("LR1", "CORTO  entrada 04:00", false, asiaH)
-            else
-                f_senal("LR1*", "excepcion: CORTO, entrada 1er M15 de 04:00", false, asiaH)
-        else if low < asiaL
-            ldnHecha := true
-            ldnModelo := "LR1"
-            ldnDir := 1
-            bool conf = close > open and close > asiaL
-            if conf
-                f_senal("LR1", "LARGO  entrada 04:00", true, asiaL)
-            else
-                f_senal("LR1*", "excepcion: LARGO, entrada 1er M15 de 04:00", true, asiaL)
+        if high > asiaH and close < open and close < asiaH
+            if f_senal("LR1", "CORTO  entrada 04:00", false, asiaH)
+                ldnHecha := true
+                ldnModelo := "LR1"
+                ldnDir := -1
+        else if low < asiaL and close > open and close > asiaL
+            if f_senal("LR1", "LARGO  entrada 04:00", true, asiaL)
+                ldnHecha := true
+                ldnModelo := "LR1"
+                ldnDir := 1
 
-    // ── cierre de 04:00: LR2.2 (no fija ldnModelo: no encadena NYC1) ──
+    // ── cierre de 04:00: LR2.2, SOLO con confirmacion (cierre de vuelta
+    // dentro). La entrada del spec a las 04:45 sin confirmar queda descartada:
+    // sin confirmacion no hay señal. Entrada en la apertura de las 05:00.
+    // No fija ldnModelo: no encadena NYC1 (regla del spec).
     if hNY == 4 and not na(asiaH) and not ldnHecha and i_lr22
-        if high > asiaH
-            ldnHecha := true
-            f_senal("LR2.2", "CORTO  entrada 04:45", false, asiaH)
-        else if low < asiaL
-            ldnHecha := true
-            f_senal("LR2.2", "LARGO  entrada 04:45", true, asiaL)
+        if high > asiaH and close < open and close < asiaH
+            if f_senal("LR2.2", "CORTO  entrada 05:00 (confirmada)", false, asiaH)
+                ldnHecha := true
+        else if low < asiaL and close > open and close > asiaL
+            if f_senal("LR2.2", "LARGO  entrada 05:00 (confirmada)", true, asiaL)
+                ldnHecha := true
 
     // ── cierre de 07:00: NYR2 > NYC1 (entrada 08:00) ──
     if hNY == 7
@@ -311,8 +315,8 @@ if barstate.isconfirmed and not avisoTF
                         if hayOB
                             int i7 = f_idx(7)
                             if i7 >= 0
-                                nyHecha := true
-                                f_senal("NYR2", "CORTO  entrada 08:00", false, aHi.get(i7))
+                                if f_senal("NYR2", "CORTO  entrada 08:00", false, aHi.get(i7))
+                                    nyHecha := true
         // NYR2 largo espejo
         bool nyr2BajoOk = false
         if not na(horaBajo)
@@ -336,8 +340,8 @@ if barstate.isconfirmed and not avisoTF
                         if hayOB
                             int i7 = f_idx(7)
                             if i7 >= 0
-                                nyHecha := true
-                                f_senal("NYR2", "LARGO  entrada 08:00", true, aLo.get(i7))
+                                if f_senal("NYR2", "LARGO  entrada 08:00", true, aLo.get(i7))
+                                    nyHecha := true
         // NYC1: LR previo con extremo de Londres en 02-04 + LRLR (pullback 05-07)
         if not nyHecha and i_nyc1 and ldnModelo != ""
             float extNivel = na
@@ -380,9 +384,9 @@ if barstate.isconfirmed and not avisoTF
                                     lrlr := true
                                 pullback := na(pullback) ? aLo.get(i) : math.min(pullback, aLo.get(i))
                 if lrlr
-                    nyHecha := true
                     float slNY = ldnDir == -1 ? ldnH : ldnL
-                    f_senal("NYC1", (ldnDir == 1 ? "LARGO" : "CORTO") + "  entrada 08:00\nBE al tomar LRLR " + str.tostring(pullback, format.mintick), ldnDir == 1, slNY)
+                    if f_senal("NYC1", (ldnDir == 1 ? "LARGO" : "CORTO") + "  entrada 08:00\nBE al tomar LRLR " + str.tostring(pullback, format.mintick), ldnDir == 1, slNY)
+                        nyHecha := true
         // lineas de Londres
         if i_ldnLin and not na(ldnH)
             line.new(bar_index + 1, ldnH, bar_index + 9, ldnH, color=c_ldn, width=1)
@@ -391,11 +395,11 @@ if barstate.isconfirmed and not avisoTF
     // ── cierre de 08:00 / 09:00: NYR1 ──
     if (hNY == 8 or hNY == 9) and not nyHecha and i_nyr1 and not na(ldnH)
         if high > ldnH and close < ldnH
-            nyHecha := true
-            f_senal("NYR1", "CORTO  entrada " + (hNY == 8 ? "09:00" : "10:00"), false, high)
+            if f_senal("NYR1", "CORTO  entrada " + (hNY == 8 ? "09:00" : "10:00"), false, high)
+                nyHecha := true
         else if low < ldnL and close > ldnL
-            nyHecha := true
-            f_senal("NYR1", "LARGO  entrada " + (hNY == 8 ? "09:00" : "10:00"), true, low)
+            if f_senal("NYR1", "LARGO  entrada " + (hNY == 8 ? "09:00" : "10:00"), true, low)
+                nyHecha := true
 
     prevH := hNY
     prevDia := diaN

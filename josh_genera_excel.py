@@ -36,7 +36,7 @@ ws["A1"] = "Auditoría manual — Modelos de Josh, EURUSD 2025"
 ws["A1"].font = F_TIT
 ws["A2"] = ("Modelos generados con la lógica del indicador JoshModels_H1: un modelo máximo por sesión "
             "(Londres: LR2.1 > LR1 > A1 > LR2.2 · NY: NYR2 > NYC1 > NYR1), rango de Asia 17:00–00:00 NY, "
-            "sin OSOK, sin NYC2, sin News Protocol. Horas en NY.")
+            "todas las señales exigen confirmación (cierre de vuelta dentro), riesgo mínimo 5 pips, sin OSOK, sin NYC2, sin News Protocol. Horas en NY.")
 ws["A2"].font = F_LEY
 ws["A3"] = ("Rellena SOLO las celdas amarillas: OK? (desplegable OK/NO) y, si es NO, la explicación. "
             "Si el modelo es «—» y ese día sí había un modelo válido, escribe cuál en la explicación.")
@@ -110,6 +110,7 @@ dv.add(f"M{primera_dato}:M{ultima_dato}")
 # resumen con formulas (se rellena solo segun el usuario marca OK/NO)
 rs = ultima_dato + 2
 ws.cell(row=rs, column=1, value="RESUMEN (automático)").font = Font(name=AR, size=10, bold=True)
+ws.cell(row=rs, column=3, value="(las cifras aparecen al abrir el fichero en Excel o Google Sheets)").font = F_LEY
 resumen = [
     ("Señales Londres",  f'=COUNTA(C{primera_dato}:C{ultima_dato})-COUNTIF(C{primera_dato}:C{ultima_dato},"—")-COUNTIF(C{primera_dato}:C{ultima_dato},"sin sesión")'),
     ("  · OK",           f'=COUNTIF(G{primera_dato}:G{ultima_dato},"OK")'),
