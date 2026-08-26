@@ -1,0 +1,269 @@
+── 2025-03-03 (lun) ──
+AH 1.04231  AL 1.04074  PDH 1.04231  PDL 1.03992
+LDNH 1.04759  LDNL 1.03883  W-open 1.04032
+  00:00  O 1.04175  H 1.04193  L 1.04123  C 1.04142  bajista 
+  01:00  O 1.04141  H 1.04162  L 1.04065  C 1.04081  bajista <AL
+  02:00  O 1.04081  H 1.04100  L 1.04018  C 1.04054  bajista <AL
+  03:00  O 1.04053  H 1.04065  L 1.03883  C 1.04009  bajista <AL <PDL
+  04:00  O 1.04015  H 1.04288  L 1.04012  C 1.04269  alcista >AH <AL >PDH
+  05:00  O 1.04270  H 1.04441  L 1.04270  C 1.04418  alcista >AH >PDH
+  06:00  O 1.04419  H 1.04579  L 1.04403  C 1.04524  alcista >AH >PDH
+  07:00  O 1.04525  H 1.04759  L 1.04525  C 1.04702  alcista >AH >PDH
+  08:00  O 1.04703  H 1.04762  L 1.04592  C 1.04717  alcista >AH >PDH >LDNH
+  09:00  O 1.04719  H 1.04906  L 1.04686  C 1.04823  alcista >AH >PDH >LDNH
+  10:00  O 1.04795  H 1.05036  L 1.04764  C 1.04845  alcista >AH >PDH >LDNH
+  11:00  O 1.04844  H 1.05011  L 1.04838  C 1.04960  alcista >AH >PDH >LDNH
+  12:00  O 1.04959  H 1.04967  L 1.04866  C 1.04902  bajista >AH >PDH >LDNH
+  13:00  O 1.04904  H 1.05032  L 1.04821  C 1.04868  bajista >AH >PDH >LDNH
+  14:00  O 1.04867  H 1.04936  L 1.04721  C 1.04728  bajista >AH >PDH >LDNH
+  15:00  O 1.04727  H 1.04850  L 1.04665  C 1.04819  alcista >AH >PDH >LDNH
+  16:00  O 1.04820  H 1.04925  L 1.04803  C 1.04856  alcista >AH >PDH >LDNH
+status=detected  sequence=LR1>LR22>NYR1
+  LR1   LARGO  entrada 03:00  SL 1.04074  [raid AL 02:00, sin filtro H4]
+  LR22  CORTO  entrada 04:45  SL 1.04231  [raid AH 04:00, entrada 04:45 M15]
+  NYR1  CORTO  entrada 09:00  SL 1.04762  [raid LDNH 08:00]
+notes: news_unavailable;dirs LR1:L,LR22:S,NYR1:S
+
+── 2025-03-04 (mar) ──
+AH 1.04959  AL 1.04710  PDH 1.05036  PDL 1.03883
+LDNH 1.05569  LDNL 1.04809  W-open 1.04032
+  00:00  O 1.04778  H 1.04862  L 1.04708  C 1.04833  alcista <AL
+  01:00  O 1.04833  H 1.04894  L 1.04789  C 1.04856  alcista 
+  02:00  O 1.04860  H 1.05003  L 1.04809  C 1.04927  alcista >AH
+  03:00  O 1.04928  H 1.05238  L 1.04861  C 1.05187  alcista >AH >PDH
+  04:00  O 1.05187  H 1.05270  L 1.05093  C 1.05118  bajista >AH >PDH
+  05:00  O 1.05119  H 1.05194  L 1.05024  C 1.05113  bajista >AH >PDH
+  06:00  O 1.05112  H 1.05443  L 1.05096  C 1.05439  alcista >AH >PDH
+  07:00  O 1.05440  H 1.05569  L 1.05358  C 1.05529  alcista >AH >PDH
+  08:00  O 1.05531  H 1.05596  L 1.05305  C 1.05388  bajista >AH >PDH >LDNH
+  09:00  O 1.05389  H 1.05483  L 1.05204  C 1.05212  bajista >AH >PDH
+  10:00  O 1.05211  H 1.05279  L 1.04962  C 1.05263  alcista >AH >PDH
+  11:00  O 1.05260  H 1.05394  L 1.05151  C 1.05335  alcista >AH >PDH
+  12:00  O 1.05334  H 1.05439  L 1.05304  C 1.05415  alcista >AH >PDH
+  13:00  O 1.05414  H 1.05911  L 1.05376  C 1.05904  alcista >AH >PDH >LDNH
+  14:00  O 1.05903  H 1.06019  L 1.05863  C 1.06006  alcista >AH >PDH >LDNH
+  15:00  O 1.06005  H 1.06236  L 1.06004  C 1.06082  alcista >AH >PDH >LDNH
+  16:00  O 1.06085  H 1.06272  L 1.06082  C 1.06253  alcista >AH >PDH >LDNH
+status=detected  sequence=LR1>ASIA1>LR22>NYR1
+  LR1   CORTO  entrada 04:00  SL 1.04959  [excepcion: raid AH 03:00 sin confirmar, entrada 1er M15 de 04:00]
+  ASIA1 LARGO  entrada 03:00  SL 1.04809  [AL barrido, 02:00 confirma]
+  LR22  CORTO  entrada 04:45  SL 1.04959  [raid AH 04:00, entrada 04:45 M15]
+  NYR1  CORTO  entrada 09:00  SL 1.05596  [raid LDNH 08:00]
+notes: news_unavailable;compiten LR1+ASIA1;dirs LR1:S,ASIA1:L,LR22:S,NYR1:S
+
+── 2025-03-05 (mie) ──
+AH 1.06274  AL 1.06018  PDH 1.06369  PDL 1.04708
+LDNH 1.07220  LDNL 1.06294  W-open 1.04032
+  00:00  O 1.06188  H 1.06323  L 1.06186  C 1.06312  alcista >AH
+  01:00  O 1.06313  H 1.06388  L 1.06241  C 1.06322  alcista >AH >PDH
+  02:00  O 1.06321  H 1.06763  L 1.06294  C 1.06745  alcista >AH >PDH
+  03:00  O 1.06743  H 1.06996  L 1.06585  C 1.06977  alcista >AH >PDH
+  04:00  O 1.06981  H 1.07220  L 1.06954  C 1.07116  alcista >AH >PDH
+  05:00  O 1.07115  H 1.07150  L 1.06834  C 1.06969  bajista >AH >PDH
+  06:00  O 1.06970  H 1.06984  L 1.06764  C 1.06787  bajista >AH >PDH
+  07:00  O 1.06787  H 1.07140  L 1.06784  C 1.06955  alcista >AH >PDH
+  08:00  O 1.06959  H 1.07225  L 1.06867  C 1.07157  alcista >AH >PDH >LDNH
+  09:00  O 1.07157  H 1.07769  L 1.07137  C 1.07691  alcista >AH >PDH >LDNH
+  10:00  O 1.07684  H 1.07705  L 1.07408  C 1.07649  bajista >AH >PDH >LDNH
+  11:00  O 1.07651  H 1.07866  L 1.07610  C 1.07668  alcista >AH >PDH >LDNH
+  12:00  O 1.07666  H 1.07877  L 1.07622  C 1.07851  alcista >AH >PDH >LDNH
+  13:00  O 1.07852  H 1.07887  L 1.07637  C 1.07734  bajista >AH >PDH >LDNH
+  14:00  O 1.07736  H 1.07907  L 1.07697  C 1.07900  alcista >AH >PDH >LDNH
+  15:00  O 1.07900  H 1.07965  L 1.07876  C 1.07920  alcista >AH >PDH >LDNH
+  16:00  O 1.07921  H 1.07928  L 1.07854  C 1.07857  bajista >AH >PDH >LDNH
+status=detected  sequence=LR1>ASIA2>LR22>NYC1>NYR1>NYC2
+  LR1   CORTO  entrada 04:00  SL 1.06274  [excepcion: raid AH 03:00 sin confirmar, entrada 1er M15 de 04:00]
+  ASIA2 LARGO  entrada 03:00  SL 1.06018  [direccion OSOK, SL en extremo de Asia]
+  LR22  CORTO  entrada 04:45  SL 1.06274  [raid AH 04:00, entrada 04:45 M15]
+  NYC1  CORTO  entrada 08:00  SL 1.07220  [continua LR direccion corto, LRLR=1.07150]
+  NYR1  CORTO  entrada 09:00  SL 1.07225  [raid LDNH 08:00]
+  NYC2  CORTO  entrada 09:00  SL 1.07220  [3er trade, 0.5R]
+notes: news_unavailable;against_osok;dirs LR1:S,ASIA2:L,LR22:S,NYC1:S,NYR1:S,NYC2:S
+
+── 2025-03-06 (jue) ──
+AH 1.08200  AL 1.07840  PDH 1.08200  PDL 1.06186
+LDNH 1.08221  LDNL 1.07802  W-open 1.04032
+  00:00  O 1.08035  H 1.08116  L 1.07999  C 1.08102  alcista 
+  01:00  O 1.08102  H 1.08199  L 1.07988  C 1.08025  bajista 
+  02:00  O 1.08024  H 1.08221  L 1.07917  C 1.07989  bajista >AH >PDH
+  03:00  O 1.07989  H 1.08167  L 1.07928  C 1.08012  alcista 
+  04:00  O 1.08009  H 1.08065  L 1.07802  C 1.07995  bajista <AL
+  05:00  O 1.07996  H 1.08034  L 1.07826  C 1.07916  bajista <AL
+  06:00  O 1.07916  H 1.08007  L 1.07830  C 1.07990  alcista <AL
+  07:00  O 1.07990  H 1.08067  L 1.07880  C 1.08000  alcista 
+  08:00  O 1.08000  H 1.08452  L 1.07905  C 1.08257  alcista >AH >PDH >LDNH
+  09:00  O 1.08258  H 1.08409  L 1.08111  C 1.08369  alcista >AH >PDH >LDNH
+  10:00  O 1.08369  H 1.08534  L 1.08112  C 1.08170  bajista >AH >PDH >LDNH
+  11:00  O 1.08172  H 1.08381  L 1.08153  C 1.08174  alcista >AH >PDH >LDNH
+  12:00  O 1.08172  H 1.08222  L 1.07913  C 1.07969  bajista >AH >PDH >LDNH
+  13:00  O 1.07968  H 1.08017  L 1.07655  C 1.07836  bajista <AL <LDNL
+  14:00  O 1.07835  H 1.08113  L 1.07825  C 1.08014  alcista <AL
+  15:00  O 1.08013  H 1.08032  L 1.07853  C 1.07863  bajista 
+  16:00  O 1.07864  H 1.07902  L 1.07748  C 1.07818  bajista <AL <LDNL
+status=detected  sequence=LR1>ASIA1>LR22>NYC1>NYC2
+  LR1   CORTO  entrada 03:00  SL 1.08200  [raid AH 02:00]
+  ASIA1 CORTO  entrada 03:00  SL 1.08221  [AH barrido, 02:00 confirma]
+  LR22  LARGO  entrada 04:45  SL 1.07840  [raid AL 04:00, entrada 04:45 M15]
+  NYC1  CORTO  entrada 08:00  SL 1.08221  [continua LR direccion corto, LRLR=1.08067]
+  NYC2  CORTO  entrada 09:00  SL 1.08221  [3er trade, 0.5R]
+notes: news_unavailable;compiten LR1+ASIA1;against_osok;dirs LR1:S,ASIA1:S,LR22:L,NYC1:S,NYC2:S
+
+── 2025-03-07 (vie) ──
+AH 1.08146  AL 1.07810  PDH 1.08534  PDL 1.07655
+LDNH 1.08714  LDNL 1.08198  W-open 1.04032
+  00:00  O 1.08128  H 1.08174  L 1.08075  C 1.08131  alcista >AH
+  01:00  O 1.08131  H 1.08250  L 1.08079  C 1.08232  alcista >AH
+  02:00  O 1.08231  H 1.08406  L 1.08198  C 1.08295  alcista >AH
+  03:00  O 1.08298  H 1.08550  L 1.08259  C 1.08507  alcista >AH >PDH
+  04:00  O 1.08508  H 1.08714  L 1.08445  C 1.08610  alcista >AH >PDH
+  05:00  O 1.08611  H 1.08670  L 1.08571  C 1.08605  bajista >AH >PDH
+  06:00  O 1.08604  H 1.08604  L 1.08444  C 1.08492  bajista >AH >PDH
+  07:00  O 1.08491  H 1.08570  L 1.08409  C 1.08542  alcista >AH >PDH
+  08:00  O 1.08544  H 1.08884  L 1.08430  C 1.08447  bajista >AH >PDH >LDNH
+  09:00  O 1.08444  H 1.08818  L 1.08440  C 1.08534  alcista >AH >PDH >LDNH
+  10:00  O 1.08534  H 1.08862  L 1.08352  C 1.08699  alcista >AH >PDH >LDNH
+  11:00  O 1.08699  H 1.08725  L 1.08374  C 1.08585  bajista >AH >PDH >LDNH
+  12:00  O 1.08583  H 1.08642  L 1.08317  C 1.08430  bajista >AH >PDH
+  13:00  O 1.08428  H 1.08440  L 1.08254  C 1.08398  bajista >AH
+  14:00  O 1.08397  H 1.08440  L 1.08330  C 1.08425  alcista >AH
+  15:00  O 1.08424  H 1.08491  L 1.08399  C 1.08472  alcista >AH
+  16:00  O 1.08471  H 1.08511  L 1.08292  C 1.08292  bajista >AH
+status=detected  sequence=LR1>ASIA2>LR22>NYC1>NYR1>NYC2
+  LR1   CORTO  entrada 04:00  SL 1.08146  [excepcion: raid AH 03:00 sin confirmar, entrada 1er M15 de 04:00]
+  ASIA2 LARGO  entrada 03:00  SL 1.07810  [direccion OSOK, SL en extremo de Asia]
+  LR22  CORTO  entrada 04:45  SL 1.08146  [raid AH 04:00, entrada 04:45 M15]
+  NYC1  CORTO  entrada 08:00  SL 1.08714  [continua LR direccion corto, LRLR=1.08670]
+  NYR1  CORTO  entrada 09:00  SL 1.08884  [raid LDNH 08:00]
+  NYC2  CORTO  entrada 09:00  SL 1.08714  [3er trade, 0.5R]
+notes: news_unavailable;tgif confluencia NYR1;against_osok;dirs LR1:S,ASIA2:L,LR22:S,NYC1:S,NYR1:S,NYC2:S
+
+
+════════════════════════════════════════════
+
+── 2025-08-04 (lun) ──
+AH 1.15887  AL 1.15501  PDH 1.15963  PDL 1.15501
+LDNH 1.15863  LDNL 1.15497  W-open 1.15910
+  00:00  O 1.15790  H 1.15853  L 1.15744  C 1.15744  bajista 
+  01:00  O 1.15747  H 1.15821  L 1.15670  C 1.15702  bajista 
+  02:00  O 1.15703  H 1.15831  L 1.15632  C 1.15716  alcista 
+  03:00  O 1.15716  H 1.15785  L 1.15505  C 1.15636  bajista 
+  04:00  O 1.15638  H 1.15650  L 1.15497  C 1.15579  bajista <AL <PDL
+  05:00  O 1.15579  H 1.15772  L 1.15555  C 1.15641  alcista 
+  06:00  O 1.15642  H 1.15771  L 1.15548  C 1.15739  alcista 
+  07:00  O 1.15737  H 1.15863  L 1.15647  C 1.15666  bajista 
+  08:00  O 1.15668  H 1.15882  L 1.15603  C 1.15751  alcista >LDNH
+  09:00  O 1.15752  H 1.15885  L 1.15728  C 1.15757  alcista >LDNH
+  10:00  O 1.15756  H 1.15871  L 1.15568  C 1.15639  bajista >LDNH
+  11:00  O 1.15638  H 1.15765  L 1.15610  C 1.15667  alcista 
+  12:00  O 1.15669  H 1.15751  L 1.15567  C 1.15720  alcista 
+  13:00  O 1.15722  H 1.15739  L 1.15642  C 1.15730  alcista 
+  14:00  O 1.15730  H 1.15776  L 1.15639  C 1.15652  bajista 
+  15:00  O 1.15650  H 1.15725  L 1.15627  C 1.15678  alcista 
+  16:00  O 1.15679  H 1.15760  L 1.15653  C 1.15691  alcista 
+status=detected  sequence=LR22>NYR1
+  LR22  LARGO  entrada 04:45  SL 1.15501  [raid AL 04:00, entrada 04:45 M15]
+  NYR1  CORTO  entrada 09:00  SL 1.15882  [raid LDNH 08:00]
+notes: news_unavailable;dirs LR22:L,NYR1:S
+
+── 2025-08-05 (mar) ──
+AH 1.15876  AL 1.15539  PDH 1.15885  PDL 1.15497
+LDNH 1.15621  LDNL 1.15277  W-open 1.15910
+  00:00  O 1.15550  H 1.15601  L 1.15539  C 1.15583  alcista 
+  01:00  O 1.15583  H 1.15583  L 1.15445  C 1.15481  bajista <AL <PDL
+  02:00  O 1.15479  H 1.15611  L 1.15428  C 1.15509  alcista <AL <PDL
+  03:00  O 1.15509  H 1.15621  L 1.15333  C 1.15459  bajista <AL <PDL
+  04:00  O 1.15457  H 1.15489  L 1.15312  C 1.15365  bajista <AL <PDL
+  05:00  O 1.15367  H 1.15463  L 1.15298  C 1.15420  alcista <AL <PDL
+  06:00  O 1.15419  H 1.15455  L 1.15341  C 1.15442  alcista <AL <PDL
+  07:00  O 1.15440  H 1.15478  L 1.15277  C 1.15391  bajista <AL <PDL
+  08:00  O 1.15392  H 1.15483  L 1.15300  C 1.15372  bajista <AL <PDL
+  09:00  O 1.15373  H 1.15543  L 1.15320  C 1.15366  bajista <AL <PDL
+  10:00  O 1.15417  H 1.15662  L 1.15337  C 1.15650  alcista <AL <PDL >LDNH
+  11:00  O 1.15651  H 1.15846  L 1.15629  C 1.15793  alcista >LDNH
+  12:00  O 1.15792  H 1.15860  L 1.15771  C 1.15827  alcista >LDNH
+  13:00  O 1.15827  H 1.15830  L 1.15754  C 1.15782  bajista >LDNH
+  14:00  O 1.15780  H 1.15796  L 1.15702  C 1.15735  bajista >LDNH
+  15:00  O 1.15735  H 1.15749  L 1.15661  C 1.15725  bajista >LDNH
+  16:00  O 1.15724  H 1.15774  L 1.15713  C 1.15748  alcista >LDNH
+status=detected  sequence=LR21>LR1>LR22
+  LR21  LARGO  entrada 03:00  SL 1.15445  [raid PDL 01:00, confirma 02:00]
+  LR1   LARGO  entrada 03:00  SL 1.15539  [raid AL 02:00, sin filtro H4]
+  LR22  LARGO  entrada 04:45  SL 1.15539  [raid AL 04:00, entrada 04:45 M15]
+notes: news_unavailable;compiten LR21+LR1;dirs LR21:L,LR1:L,LR22:L
+
+── 2025-08-06 (mie) ──
+AH 1.15852  AL 1.15642  PDH 1.15860  PDL 1.15277
+LDNH 1.16148  LDNL 1.15705  W-open 1.15910
+  00:00  O 1.15799  H 1.15860  L 1.15777  C 1.15829  alcista >AH
+  01:00  O 1.15826  H 1.15835  L 1.15743  C 1.15784  bajista 
+  02:00  O 1.15783  H 1.15882  L 1.15765  C 1.15785  alcista >AH >PDH
+  03:00  O 1.15784  H 1.15820  L 1.15711  C 1.15809  alcista 
+  04:00  O 1.15808  H 1.15833  L 1.15705  C 1.15747  bajista 
+  05:00  O 1.15747  H 1.15879  L 1.15740  C 1.15848  alcista >AH >PDH
+  06:00  O 1.15848  H 1.16107  L 1.15841  C 1.16069  alcista >AH >PDH
+  07:00  O 1.16070  H 1.16148  L 1.15977  C 1.16040  bajista >AH >PDH
+  08:00  O 1.16039  H 1.16284  L 1.16001  C 1.16234  alcista >AH >PDH >LDNH
+  09:00  O 1.16235  H 1.16359  L 1.16173  C 1.16357  alcista >AH >PDH >LDNH
+  10:00  O 1.16360  H 1.16375  L 1.16221  C 1.16272  bajista >AH >PDH >LDNH
+  11:00  O 1.16271  H 1.16469  L 1.16224  C 1.16462  alcista >AH >PDH >LDNH
+  12:00  O 1.16461  H 1.16483  L 1.16306  C 1.16344  bajista >AH >PDH >LDNH
+  13:00  O 1.16344  H 1.16550  L 1.16327  C 1.16490  alcista >AH >PDH >LDNH
+  14:00  O 1.16490  H 1.16683  L 1.16480  C 1.16622  alcista >AH >PDH >LDNH
+  15:00  O 1.16623  H 1.16639  L 1.16524  C 1.16564  bajista >AH >PDH >LDNH
+  16:00  O 1.16564  H 1.16601  L 1.16500  C 1.16594  alcista >AH >PDH >LDNH
+status=detected  sequence=LR1
+  LR1   CORTO  entrada 03:00  SL 1.15852  [raid AH 02:00]
+notes: news_unavailable;with_osok;dirs LR1:S
+
+── 2025-08-07 (jue) ──
+AH 1.16651  AL 1.16495  PDH 1.16683  PDL 1.15705
+LDNH 1.16986  LDNL 1.16341  W-open 1.15910
+  00:00  O 1.16643  H 1.16763  L 1.16628  C 1.16712  alcista >AH >PDH
+  01:00  O 1.16712  H 1.16763  L 1.16681  C 1.16747  alcista >AH >PDH
+  02:00  O 1.16751  H 1.16796  L 1.16678  C 1.16758  alcista >AH >PDH
+  03:00  O 1.16761  H 1.16911  L 1.16732  C 1.16897  alcista >AH >PDH
+  04:00  O 1.16893  H 1.16986  L 1.16755  C 1.16824  bajista >AH >PDH
+  05:00  O 1.16828  H 1.16846  L 1.16703  C 1.16705  bajista >AH >PDH
+  06:00  O 1.16707  H 1.16717  L 1.16615  C 1.16700  bajista >AH >PDH
+  07:00  O 1.16702  H 1.16766  L 1.16341  C 1.16445  bajista >AH <AL >PDH
+  08:00  O 1.16442  H 1.16625  L 1.16374  C 1.16511  alcista <AL
+  09:00  O 1.16510  H 1.16585  L 1.16376  C 1.16427  bajista <AL
+  10:00  O 1.16425  H 1.16495  L 1.16140  C 1.16241  bajista <AL <LDNL
+  11:00  O 1.16242  H 1.16418  L 1.16108  C 1.16396  alcista <AL <LDNL
+  12:00  O 1.16396  H 1.16446  L 1.16350  C 1.16382  bajista <AL
+  13:00  O 1.16382  H 1.16396  L 1.16318  C 1.16331  bajista <AL <LDNL
+  14:00  O 1.16332  H 1.16371  L 1.16213  C 1.16219  bajista <AL <LDNL
+  15:00  O 1.16222  H 1.16564  L 1.16189  C 1.16543  alcista <AL <LDNL
+  16:00  O 1.16546  H 1.16713  L 1.16544  C 1.16646  alcista >AH >PDH
+status=detected  sequence=LR1>ASIA2>LR22
+  LR1   CORTO  entrada 04:00  SL 1.16651  [excepcion: raid AH 03:00 sin confirmar, entrada 1er M15 de 04:00]
+  ASIA2 LARGO  entrada 03:00  SL 1.16495  [direccion OSOK, SL en extremo de Asia]
+  LR22  CORTO  entrada 04:45  SL 1.16651  [raid AH 04:00, entrada 04:45 M15]
+notes: news_unavailable;against_osok;dirs LR1:S,ASIA2:L,LR22:S
+
+── 2025-08-08 (vie) ──
+AH 1.16792  AL 1.16548  PDH 1.16986  PDL 1.16108
+LDNH 1.16644  LDNL 1.16287  W-open 1.15910
+  00:00  O 1.16596  H 1.16634  L 1.16576  C 1.16582  bajista 
+  01:00  O 1.16581  H 1.16599  L 1.16388  C 1.16410  bajista <AL
+  02:00  O 1.16412  H 1.16526  L 1.16407  C 1.16500  alcista <AL
+  03:00  O 1.16501  H 1.16644  L 1.16485  C 1.16590  alcista <AL
+  04:00  O 1.16592  H 1.16627  L 1.16344  C 1.16369  bajista <AL
+  05:00  O 1.16367  H 1.16436  L 1.16295  C 1.16415  alcista <AL
+  06:00  O 1.16416  H 1.16473  L 1.16287  C 1.16356  bajista <AL
+  07:00  O 1.16356  H 1.16491  L 1.16350  C 1.16437  alcista <AL
+  08:00  O 1.16434  H 1.16539  L 1.16375  C 1.16417  bajista <AL
+  09:00  O 1.16417  H 1.16551  L 1.16413  C 1.16488  alcista <AL
+  10:00  O 1.16484  H 1.16627  L 1.16461  C 1.16559  alcista <AL
+  11:00  O 1.16558  H 1.16677  L 1.16543  C 1.16598  alcista <AL >LDNH
+  12:00  O 1.16598  H 1.16630  L 1.16496  C 1.16562  bajista <AL
+  13:00  O 1.16561  H 1.16667  L 1.16534  C 1.16589  alcista <AL >LDNH
+  14:00  O 1.16590  H 1.16628  L 1.16479  C 1.16559  bajista <AL
+  15:00  O 1.16557  H 1.16560  L 1.16363  C 1.16425  bajista <AL
+  16:00  O 1.16425  H 1.16433  L 1.16368  C 1.16368  bajista <AL
+status=detected  sequence=LR1>ASIA2>LR22
+  LR1   LARGO  entrada 04:00  SL 1.16548  [excepcion: raid AL 03:00 sin confirmar, entrada 1er M15 de 04:00]
+  ASIA2 LARGO  entrada 03:00  SL 1.16548  [direccion OSOK, SL en extremo de Asia]
+  LR22  LARGO  entrada 04:45  SL 1.16548  [raid AL 04:00, entrada 04:45 M15]
+notes: news_unavailable;with_osok;dirs LR1:L,ASIA2:L,LR22:L
+
