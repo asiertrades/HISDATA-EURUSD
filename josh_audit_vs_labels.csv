@@ -1,0 +1,38 @@
+date,weekday,label_quality,josh_model,josh_dir,josh_hours,detected,primary,verdict,dir_match,hour_match,excerpt
+2025-01-13,Monday,explicit_model,Asia Model,short,3AM,LR22,LR22,MISSED,,,ASIA MODEL PO3 3AM +3R just sell eu this week
+2025-01-21,Tuesday,explicit_model,NY Reversal,unknown,8AM,LR1>LR22>NYC1>NYC2,LR1,MISSED,,,NY reversal SMT w/DXY (London lows) 8AM -> OLHC +4R
+2025-01-22,Wednesday,explicit_model,London Reversal (family),unknown,1AM;2AM,LR21>LR1>ASIA1>LR22>NYC1>NYC2,LR21,PRIMARY_MATCH,,si,Classic london model ASIA RANGE JUDAS SWIG OPEN 1AM PO3 2AM 
+2025-01-27,Monday,explicit_model,London Reversal (family),long,3AM,LR1>LR22>NYR1,LR1,PRIMARY_MATCH,si,si,Classic London Model 3AM OLHC Buy Below the Open +3.5R
+2025-01-29,Wednesday,explicit_model,London Reversal (family),short,1AM,LR21>LR1>ASIA1>LR22>NYC1>NYR1>NYC2,LR21,PRIMARY_MATCH,si,si,Classic london model JUDAS SWIG OPEN 1AM +4R
+2025-01-31,Friday,explicit_model,NY Continuation,unknown,,LR1>ASIA2>LR22>NYC1>NYC2,LR1,FAMILY_MATCH,,,$eu - NY continuation
+2025-03-14,Friday,explicit_model,London Reversal,unknown,4AM,LR1>ASIA1>LR22,LR1,PRIMARY_MATCH,,si,LONDON REVERSAL OLHC 4AM +3
+2025-03-18,Tuesday,explicit_model,London Reversal (family),long,3AM,LR21>LR1>ASIA1>LR22,LR21,PRIMARY_MATCH,si,si,Classic London Model 3AM OLHC Buy Below the Open +2.5R
+2025-03-19,Wednesday,explicit_model,Asia Model,short,3AM,LR1>ASIA2>LR22>NYC1>NYC2,LR1,FAMILY_MATCH,NO,si,Asia Model 3AM OHLC Sell Below the Open +3R
+2025-04-02,Wednesday,explicit_model,London Reversal.1 -> NY Continuation.1,unknown,,LR21>LR1>ASIA1>NYR2>NYC1>NYC2,LR21,PRIMARY_MATCH,,,"Profile- London Reversal, New York Continuation"
+2025-04-04,Friday,explicit_model,London Reversal (family),short,1AM,LR21>LR1>ASIA1>LR22>NYR2>NYC1>NYR1>NYC2,LR21,PRIMARY_MATCH,si,si,Classic london model JUDAS SWIG OPEN 1AM
+2025-05-05,Monday,explicit_model,NY Reversal,unknown,10AM,LR21>LR1>ASIA1>LR22>NYR1,LR21,FAMILY_MATCH,,si,NY REVERSAL 10AM -> OHLC +4R
+2025-05-08,Thursday,explicit_model,Asia Model,unknown,2AM,LR1>ASIA2>LR22>NYC1>NYR1>NYC2,LR1,FAMILY_MATCH,,si,ASIA MODEL OHLC 2AM
+2025-06-25,Wednesday,explicit_model,NY Reversal,unknown,,LR1>ASIA2>LR22>NYC1>NYC2,LR1,MISSED,,,Playing the OHLC h4 Candle NY reversal +2%
+2025-06-30,Monday,explicit_model,London Reversal,unknown,,LR1>NYC1>NYR1>NYC2,LR1,PRIMARY_MATCH,,,Playing the OHLC h4 Candle LND reversal +3%
+2025-07-16,Wednesday,explicit_model,London Reversal,short,,LR1>ASIA2>LR22>NYC1>NYC2,LR1,PRIMARY_MATCH,si,,LND REVERSAL M15 Market Maker Sell Model +7
+2025-07-18,Friday,explicit_model,London Reversal,unknown,3AM,LR21>LR1>ASIA1>LR22>NYC1>NYC2,LR21,PRIMARY_MATCH,,si,3AM H1 OLHC LND REVERSAL +2.5
+2025-07-22,Tuesday,explicit_model,NY Reversal,unknown,10AM,LR1>LR22>NYC1>NYR1>NYC2,LR1,FAMILY_MATCH,,si,10AM H1 OLHC NY REVERSAL +3
+2025-09-15,Monday,explicit_model,London Reversal,unknown,,LR21>LR1>ASIA1>LR22>NYR1,LR21,PRIMARY_MATCH,,,+LND reversal ; favorite London setup 3R
+2025-09-24,Wednesday,explicit_model,London Continuation (not a separate Notion card; related to 3AM/4AM PO3),unknown,3AM;4AM,LR1>ASIA2>LR22,LR1,UNMAPPED,,,London Continuations Po3 3AM & 4AM
+2025-10-15,Wednesday,explicit_model,NY Reversal,unknown,,LR1>ASIA2>LR22>NYC1>NYR1>NYC2,LR1,FAMILY_MATCH,,,Wednesday Continuations NY REVERSAL
+2025-10-16,Thursday,explicit_model,London Reversal,unknown,,ASIA2,ASIA2,MISSED,,,TUESDAY LOW OF THE WEEK London Reversal
+2025-11-07,Friday,explicit_model,London Reversal + Friday Continuation,unknown,,LR21>LR1>ASIA1>NYC1>NYC2,LR21,PRIMARY_MATCH,,,Friday Continuations + london reversal
+2025-11-13,Thursday,explicit_model,NY Continuation,unknown,,LR1>ASIA2>LR22>NYC1>NYC2,LR1,FAMILY_MATCH,,,Ny continuations One of the best weeks
+2025-12-02,Tuesday,explicit_model,London Reversal,unknown,4AM,LR1>LR22>NYR1,LR1,PRIMARY_MATCH,,si,Lnd Reversal OHLC 4AM
+2025-03-25,Tuesday,session_hours_only_not_model_name,possible Asia or London Reversal family,short,3AM,LR1>LR22>NYC1>NYC2,LR1,MISSED,NO,si,3AM OHLC Sell Above the Open +2.5; later 1W london & 1L in n
+2025-08-06,Wednesday,session_hours_only_not_model_name,unmapped ICT label (not a Notion model name),long,,LR1,LR1,UNMAPPED,,,EURUSD Market Maker Buy Model Wednesday Daily OLHC
+2025-08-11,Monday,session_hours_only_not_model_name,possible NY Continuation,unknown,,,,MISSED,,,Thursday highs of the week Monday continuations +3R
+2025-08-12,Tuesday,session_hours_only_not_model_name,possible NY Continuation + News Protocol,unknown,9:30;10AM,LR21>LR1>ASIA1>NYC1>NYC2,LR21,FAMILY_MATCH,,si,09:30AM Manipulation > 10AM Continuation 2R
+2025-11-12,Wednesday,session_hours_only_not_model_name,possible London Reversal -> NY Continuation,unknown,3AM;9AM;10AM,LR1>LR22>NYR2>NYC1>NYR1>NYC2,LR1,PRIMARY_MATCH,,si,3AM londo 9-10AM ny
+2025-11-14,Friday,session_hours_only_not_model_name,possible Asia/London 3AM family,unknown,3AM,LR21>LR1>ASIA1>LR22>NYR2>NYR1,LR21,FAMILY_MATCH,,si,3Am candle OHLC be today
+2025-12-01,Monday,session_hours_only_not_model_name,possible Asia/London 3AM family,unknown,3AM,LR1>LR22>NYR1,LR1,MISSED,,,weekly narrative + daily profile 3AM
+2025-12-04,Thursday,missed_opportunity_stated,possible London/Asia 3AM family,unknown,3AM,LR21>LR1>ASIA1>LR22>NYC1>NYR1>NYC2,LR21,FAMILY_MATCH,,si,I missed the best opportunity at 3AM today
+2025-12-05,Friday,session_hours_only_not_model_name,possible London + NY sequence,short,3AM;9AM,LR1>ASIA2>LR22>NYC1>NYC2,LR1,UNMAPPED,,,Classic sell day 3AM & 9AM
+2025-12-08,Monday,session_hours_only_not_model_name,possible London + NY sequence,long,3AM;9AM,LR1>LR22>NYC1>NYR1>NYC2,LR1,UNMAPPED,,,Classic buy day 3AM & 9AM Another week same model
+2025-12-12,Friday,session_hours_only_not_model_name,possible London + NY sequence,both,3AM;8AM,LR1>ASIA2>LR22>NYR1,LR1,UNMAPPED,,,Trading both sides of the marketplace 3AM & 8AM
+2025-12-19,Friday,session_hours_only_not_model_name,possible London + NY sequence,short,3AM;9AM,LR1>ASIA2>LR22>NYC1>NYR1>NYC2,LR1,UNMAPPED,,,Eurusd shorts Weekly narrative + time 3AM & 9AM

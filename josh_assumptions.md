@@ -85,3 +85,40 @@ auditoría del calendario.
    fuertemente alcista.
 3. LR21 con PDH/PDL incluidos es responsable de buena parte de sus 79 días.
    Si debe limitarse a AH/AL, es un cambio de una línea.
+
+## Auditoría contra los trades etiquetados de Josh (josh_auditoria.py)
+
+Ground truth: 25 días `explicit_model` de posts públicos de 2025
+(`josh_eurusd_2025_labeled_trades.csv`). Resultado del cruce en
+`josh_audit_vs_labels.csv`:
+
+- 24 días mapeables: **20 con la familia detectada (83%)**, 13 de ellos como
+  modelo primario. Horas: 12/12 coinciden cuando Josh las da. Dirección: 5/6.
+- 1 día `UNMAPPED`: "London Continuations" (2025-09-24) no existe en el
+  catálogo del spec (el propio spec no lo recoge).
+
+Los 4 fallos (MISSED) y su causa:
+
+1. **2025-01-13, Asia Model corto 3AM (+3R)** — lunes. El spec fija
+   `osok_dir=None` lun–mar, y Asia Model.2 exige OSOK, así que no puede armar.
+   Pero Josh ya tenía narrativa semanal el lunes ("just sell eu this week").
+   La aproximación OSOK del spec (§4.1) contradice su práctica en lunes.
+2. **2025-01-21, NY reversal 8AM sobre los London lows (+4R)** — el bajo del
+   día se formó a las 04:00, fuera de la ventana 05–07 que NYR2 exige, y NYR1
+   solo mira raids de las 08:00/09:00. El detector armó NYC1 LARGO entrada
+   08:00: el mismo trade, misma hora y dirección, con otro nombre. Fallo de
+   taxonomía más que de detección.
+3. **2025-06-25, NY reversal (+2%)** — el low de las 08:00 (1.15901) se quedó
+   a 0,3 pips de tomar el LDNL (1.15898): NYR1 no armó por comparación
+   estricta. El detector armó NYC1 LARGO 08:00 (mismo trade otra vez).
+4. **2025-10-16, London Reversal sobre el low del martes** — Londres raideó el
+   bajo semanal (martes), que no está en el universo de niveles del detector
+   (AH/AL/PDH/PDL). El 03:00 se quedó además a 4 pips del AL.
+
+Debilidad direccional detectada: 2025-03-19 Asia Model CORTO de Josh vs ASIA2
+LARGO del detector — la aproximación determinista de OSOK no replica su
+narrativa.
+
+Señal positiva: el 2025-12-04 ("I missed the best opportunity at 3AM") el
+detector tenía armados LR21/LR1/ASIA1 con entrada 03:00 — la oportunidad que
+Josh dice haber perdido estaba detectada.
